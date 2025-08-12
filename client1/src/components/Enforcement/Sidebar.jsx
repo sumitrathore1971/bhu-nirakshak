@@ -1,0 +1,101 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  LayoutDashboard, 
+  FolderOpen, 
+  Drone, 
+  BarChart3, 
+  Settings,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
+
+const menuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/enforcement' },
+  { id: 'cases', label: 'Case Management', icon: FolderOpen, path: '/enforcement/cases' },
+  { id: 'drones', label: 'Drone Operations', icon: Drone, path: '/enforcement/drones' },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/enforcement/analytics' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/enforcement/settings' },
+];
+
+export default function Sidebar({ isCollapsed, setIsCollapsed, activePage, setActivePage }) {
+  return (
+    <motion.div
+      initial={{ width: 280 }}
+      animate={{ width: isCollapsed ? 80 : 280 }}
+      className="h-screen bg-white dark:bg-neutral-950 border-r border-gray-200 dark:border-neutral-800 shadow-lg"
+    >
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between">
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center space-x-3"
+              >
+                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-md">
+                  <span className="text-white font-bold text-sm">BN</span>
+                </div>
+                <div>
+                  <span className="font-heading font-bold text-lg text-gray-900 dark:text-white">Enforcement</span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Portal</p>
+                </div>
+              </motion.div>
+            )}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              {isCollapsed ? <ChevronRight size={20} className="text-gray-600 dark:text-gray-300" /> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-300" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Navigation Menu */}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-2">
+            {menuItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => setActivePage(item.id)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    activePage === item.id
+                      ? 'bg-primary text-white shadow-md'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <item.icon size={20} />
+                  {!isCollapsed && (
+                    <motion.span
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="font-medium"
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 dark:border-neutral-800">
+          {!isCollapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center text-gray-600 dark:text-gray-400 text-sm"
+            >
+              <p className="font-medium">Bhu-Nirakshak</p>
+              <p className="text-xs">Enforcement Portal</p>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
