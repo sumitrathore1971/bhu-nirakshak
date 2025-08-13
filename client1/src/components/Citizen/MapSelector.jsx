@@ -1,44 +1,36 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-const pinIcon = new L.Icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-function MapClickHandler({ onSelect }) {
-  useMapEvents({ click(e) { onSelect({ lat: e.latlng.lat, lng: e.latlng.lng }); } });
-  return null;
-}
-
-function MapRecenter({ center }) {
-  const map = useMap();
-  useEffect(() => { if (center) map.setView([center.lat, center.lng], map.getZoom()); }, [center, map]);
-  return null;
-}
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 export default function MapSelector({ value, onChange }) {
-  const [baseLayer, setBaseLayer] = useState('osm');
-  const [query, setQuery] = useState('');
+  const [baseLayer, setBaseLayer] = useState("osm");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
 
-  const center = useMemo(() => (
-    value?.lat && value?.lng ? { lat: value.lat, lng: value.lng } : { lat: 22.7196, lng: 75.8577 }
-  ), [value]);
+  const center = useMemo(
+    () =>
+      value?.lat && value?.lng
+        ? { lat: value.lat, lng: value.lng }
+        : { lat: 22.7196, lng: 75.8577 },
+    [value]
+  );
 
   async function handleSearch(ev) {
     ev.preventDefault();
     if (!query.trim()) return;
     try {
       setLoading(true);
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}&addressdetails=1&limit=5`
+      );
       const data = await res.json();
       setResults(data || []);
     } catch (e) {
@@ -55,6 +47,83 @@ export default function MapSelector({ value, onChange }) {
     setResults([]);
   }
 
+  // Initialize map
+  useEffect(() => {
+    if (!token) return;
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    mapboxgl.accessToken = token;
+    const initialStyle =
+      baseLayer === "osm"
+        ? "mapbox://styles/mapbox/streets-v12"
+        : "mapbox://styles/mapbox/satellite-streets-v12";
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: initialStyle,
+      center: [center.lng, center.lat],
+      zoom: 12.5,
+    });
+    mapRef.current = map;
+
+    map.addControl(
+      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      "top-right"
+    );
+
+    map.on("click", (e) => {
+      const lng = e.lngLat.lng;
+      const lat = e.lngLat.lat;
+      if (typeof onChange === "function") onChange({ lat, lng });
+      if (!markerRef.current) {
+        markerRef.current = new mapboxgl.Marker()
+          .setLngLat([lng, lat])
+          .addTo(map);
+      } else {
+        markerRef.current.setLngLat([lng, lat]);
+      }
+    });
+
+    return () => {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [token]);
+
+  // Respond to external value changes by moving marker and recentering
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (value?.lat && value?.lng) {
+      if (!markerRef.current) {
+        markerRef.current = new mapboxgl.Marker()
+          .setLngLat([value.lng, value.lat])
+          .addTo(map);
+      } else {
+        markerRef.current.setLngLat([value.lng, value.lat]);
+      }
+      map.flyTo({
+        center: [value.lng, value.lat],
+        zoom: Math.max(map.getZoom(), 13),
+        essential: true,
+      });
+    }
+  }, [value]);
+
+  // Switch base style
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const style =
+      baseLayer === "osm"
+        ? "mapbox://styles/mapbox/streets-v12"
+        : "mapbox://styles/mapbox/satellite-streets-v12";
+    map.setStyle(style);
+  }, [baseLayer]);
+
   return (
     <div className="relative w-full h-full">
       <div className="absolute top-3 left-3 right-3 z-[500] flex flex-col gap-2">
@@ -68,15 +137,41 @@ export default function MapSelector({ value, onChange }) {
             />
           </form>
           <div className="bg-white rounded-md border shadow inline-flex p-1">
-            <button type="button" onClick={() => setBaseLayer('osm')} className={`px-3 py-1 rounded ${baseLayer === 'osm' ? 'bg-gray-100' : ''}`}>Map</button>
-            <button type="button" onClick={() => setBaseLayer('satellite')} className={`px-3 py-1 rounded ${baseLayer === 'satellite' ? 'bg-gray-100' : ''}`}>Satellite</button>
+            <button
+              type="button"
+              onClick={() => setBaseLayer("osm")}
+              className={`px-3 py-1 rounded ${
+                baseLayer === "osm" ? "bg-gray-100" : ""
+              }`}
+            >
+              Map
+            </button>
+            <button
+              type="button"
+              onClick={() => setBaseLayer("satellite")}
+              className={`px-3 py-1 rounded ${
+                baseLayer === "satellite" ? "bg-gray-100" : ""
+              }`}
+            >
+              Satellite
+            </button>
           </div>
         </div>
         <AnimatePresence>
           {results.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="bg-white border rounded-md shadow max-h-56 overflow-auto">
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="bg-white border rounded-md shadow max-h-56 overflow-auto"
+            >
               {results.map((r) => (
-                <button key={`${r.place_id}`} type="button" onClick={() => handleSelectResult(r)} className="block w-full text-left px-3 py-2 hover:bg-gray-50">
+                <button
+                  key={`${r.place_id}`}
+                  type="button"
+                  onClick={() => handleSelectResult(r)}
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-50"
+                >
                   {r.display_name}
                 </button>
               ))}
@@ -84,17 +179,16 @@ export default function MapSelector({ value, onChange }) {
           )}
         </AnimatePresence>
       </div>
-
-      <MapContainer center={[center.lat, center.lng]} zoom={13} className="w-full h-[420px] md:h-full rounded-lg overflow-hidden border border-gray-200">
-        {baseLayer === 'osm' ? (
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
-        ) : (
-          <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
-        )}
-        <MapClickHandler onSelect={onChange} />
-        <MapRecenter center={center} />
-        {value?.lat && value?.lng && <Marker position={[value.lat, value.lng]} icon={pinIcon} />}
-      </MapContainer>
+      {!token ? (
+        <div className="w-full h-[420px] md:h-full rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">
+          Set VITE_MAPBOX_TOKEN in client1/.env to use the map.
+        </div>
+      ) : (
+        <div
+          ref={mapContainerRef}
+          className="w-full h-[420px] md:h-full rounded-lg overflow-hidden border border-gray-200"
+        />
+      )}
     </div>
   );
 }

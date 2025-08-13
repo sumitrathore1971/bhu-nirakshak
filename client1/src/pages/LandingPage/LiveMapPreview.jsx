@@ -1,6 +1,6 @@
-import React from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import React, { useEffect, useRef } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 const markers = [
   { lat: 22.7196, lng: 75.8577, label: "Illegal Construction #1" },
@@ -9,6 +9,42 @@ const markers = [
 ];
 
 export default function LiveMapPreview() {
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  useEffect(() => {
+    if (!token) return;
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    mapboxgl.accessToken = token;
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [75.8577, 22.7196],
+      zoom: 12.5,
+    });
+    mapRef.current = map;
+
+    map.addControl(
+      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      "top-right"
+    );
+
+    markers.forEach((m) => {
+      const popup = new mapboxgl.Popup({ offset: 24 }).setText(m.label);
+      new mapboxgl.Marker()
+        .setLngLat([m.lng, m.lat])
+        .setPopup(popup)
+        .addTo(map);
+    });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [token]);
+
   return (
     <section id="live-map" className="py-20 bg-white dark:bg-neutral-950">
       <div className="max-w-5xl mx-auto px-4">
@@ -16,15 +52,13 @@ export default function LiveMapPreview() {
           Live Map Preview
         </h2>
         <div className="w-full h-[350px] rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-neutral-800">
-          <MapContainer center={[22.7196, 75.8577]} zoom={13} scrollWheelZoom={false} className="w-full h-full">
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
-            {markers.map((m, i) => (
-              <Marker key={i} position={[m.lat, m.lng]}>
-                <Popup>{m.label}</Popup>
-              </Marker>
-            ))}
-            {/* Heatmap overlay can be added here if react-leaflet-heatmap-layer is installed */}
-          </MapContainer>
+          {!token ? (
+            <div className="w-full h-full flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">
+              Set VITE_MAPBOX_TOKEN in client1/.env to view the map.
+            </div>
+          ) : (
+            <div ref={mapContainerRef} className="w-full h-full" />
+          )}
         </div>
       </div>
     </section>
