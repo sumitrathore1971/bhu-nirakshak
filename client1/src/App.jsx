@@ -12,6 +12,9 @@ import LoginPage from "./pages/Auth/LoginPage";
 import SignupPage from "./pages/Auth/SignupPage";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 import NavbarDemo from "./pages/NavbarDemo";
+import About from "./pages/About";
+import Help from "./pages/Help";
+import Contact from "./pages/Contact";
 
 function App() {
   return (
@@ -22,9 +25,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/about" element={<div className="min-h-screen bg-gray-50 dark:bg-neutral-950 pt-20"><div className="max-w-4xl mx-auto px-4 py-8"><h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">About Bhu-Nirakshak</h1><p className="text-lg text-gray-600 dark:text-gray-300">A comprehensive platform for land monitoring and enforcement.</p></div></div>} />
-          <Route path="/contact" element={<div className="min-h-screen bg-gray-50 dark:bg-neutral-950 pt-20"><div className="max-w-4xl mx-auto px-4 py-8"><h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">Contact Us</h1><p className="text-lg text-gray-600 dark:text-gray-300">Get in touch with our team for support and inquiries.</p></div></div>} />
-          <Route path="/help" element={<div className="min-h-screen bg-gray-50 dark:bg-neutral-950 pt-20"><div className="max-w-4xl mx-auto px-4 py-8"><h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">Help & Support</h1><p className="text-lg text-gray-600 dark:text-gray-300">Find answers to common questions and get help using the platform.</p></div></div>} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/demo" element={<NavbarDemo />} />
           <Route path="api/auth/login" element={<LoginPage />} />
           <Route path="api/auth/signup" element={<SignupPage />} />

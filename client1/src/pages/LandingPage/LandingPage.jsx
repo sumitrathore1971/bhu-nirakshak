@@ -1,5 +1,6 @@
 import React from "react";
 import Hero from "./Hero";
+import About from "./About";
 import Features from "./Features";
 import HowItWorks from "./HowItWorks";
 import LiveMapPreview from "./LiveMapPreview";
@@ -15,6 +16,7 @@ export default function LandingPage() {
       <Features />
       <HowItWorks />
       <LiveMapPreview />
+		  <About />
       <CallToAction />
       {/* <Footer /> */}
     </>

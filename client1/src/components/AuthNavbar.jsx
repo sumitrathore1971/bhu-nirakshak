@@ -27,8 +27,7 @@ export default function AuthNavbar() {
     setIsMobileMenuOpen(false);
   };
 
-  const showSignUp = location.pathname === "/login";
-  const showLogin = location.pathname === "/signup";
+  const isLoginRoute = location.pathname === "/login";
 
   return (
     <nav className="bg-white shadow-md fixed top-0 inset-x-0 z-50">
@@ -39,7 +38,7 @@ export default function AuthNavbar() {
             <Logo />
           </Link>
 
-          {/* Right Side - Desktop Navigation */}
+			{/* Right Side - Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link
@@ -52,22 +51,23 @@ export default function AuthNavbar() {
                 {item.name}
               </Link>
             ))}
-            {showSignUp && (
-              <Link
-                to="/signup"
-                className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
-              >
-                Sign Up
-              </Link>
-            )}
-            {showLogin && (
-              <Link
-                to="/login"
-                className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
-              >
-                Login
-              </Link>
-            )}
+				{/* Auth CTA: Sign Up on /login, otherwise Login */}
+				{isLoginRoute ? (
+					<Link
+						to="/signup"
+						className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
+					>
+						Sign Up
+					</Link>
+				) : (
+					<Link
+						to="/login"
+						className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
+					>
+						Login
+					</Link>
+				)}
+            
           </div>
 
           {/* Mobile menu button */}
@@ -108,26 +108,27 @@ export default function AuthNavbar() {
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-4">
-                {showSignUp && (
-                  <Link
-                    to="/signup"
-                    onClick={closeMobileMenu}
-                    className="block w-full text-center bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
-                  >
-                    Sign Up
-                  </Link>
-                )}
-                {showLogin && (
-                  <Link
-                    to="/login"
-                    onClick={closeMobileMenu}
-                    className="block w-full text-center bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
-                  >
-                    Login
-                  </Link>
-                )}
-              </div>
+
+					<div className="pt-4 space-y-2">
+						{/* Auth CTA: Sign Up on /login, otherwise Login */}
+						{isLoginRoute ? (
+							<Link
+								to="/signup"
+								onClick={closeMobileMenu}
+								className="block w-full text-center bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
+							>
+								Sign Up
+							</Link>
+						) : (
+							<Link
+								to="/login"
+								onClick={closeMobileMenu}
+								className="block w-full text-center bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md transition-colors duration-200 font-medium"
+							>
+								Login
+							</Link>
+						)}
+					</div>
             </div>
           </div>
         </div>

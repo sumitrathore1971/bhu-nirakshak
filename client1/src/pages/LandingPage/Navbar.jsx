@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
 import { IconMenu2, IconX } from "@tabler/icons-react";
 
@@ -10,10 +10,11 @@ import { CONSTANTS } from "@/constants/links";
 
 export default function Navbar() {
   const navItems = [
-    { name: "Home", link: "/" },
-    { name: "About", link: "/#about" },
+    { name: "Home", link: "/#home" },
     { name: "Features", link: "/#features" },
-    { name: "Team", link: "/#team" },
+    {name : "Live Preview", link: "/#live-map"},
+    { name: "About", link: "/#about" },
+   
   ];
 
   const ref = useRef(null);
@@ -35,6 +36,16 @@ export default function Navbar() {
 
 function MobileNav({ navItems, visible }) {
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+
+  const handleClick = (e, link) => {
+    if (link.includes("#") && location.pathname === "/") {
+      e.preventDefault();
+      const id = link.split("#")[1];
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
     <>
@@ -77,7 +88,7 @@ function MobileNav({ navItems, visible }) {
                 <Link 
                   key={`link=${idx}`} 
                   to={navItem.link} 
-                  onClick={() => setOpen(false)} 
+                  onClick={(e) => { handleClick(e, navItem.link); setOpen(false); }} 
                   className="relative cursor-pointer text-neutral-600 dark:text-neutral-300"
                 >
                   <motion.span className="block">{navItem.name}</motion.span>
@@ -105,6 +116,16 @@ function MobileNav({ navItems, visible }) {
 }
 
 function DesktopNavInner({ navItems, visible, hovered, setHovered }) {
+  const location = useLocation();
+
+  const handleClick = (e, link) => {
+    if (link.includes("#") && location.pathname === "/") {
+      e.preventDefault();
+      const id = link.split("#")[1];
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
   return (
     <>
       <Logo />
@@ -115,6 +136,7 @@ function DesktopNavInner({ navItems, visible, hovered, setHovered }) {
             className="relative px-4 py-2 cursor-pointer text-neutral-600 dark:text-neutral-300"
             key={`link=${idx}`}
             to={navItem.link}
+            onClick={(e) => handleClick(e, navItem.link)}
           >
             {hovered === idx && (
               <motion.div layoutId="hovered" className="w-full h-full absolute inset-0 bg-gray-100 dark:bg-neutral-800 rounded-full" />
@@ -124,9 +146,11 @@ function DesktopNavInner({ navItems, visible, hovered, setHovered }) {
         ))}
       </motion.div>
       <div className="flex items-center gap-4">
+        <a href="/signup" style={{zIndex : "100"}}>
         <Button className="hidden md:block cursor-pointer" variant="destructive">
-          <Link to="/citizen" className="cursor-pointer">Report Issue</Link>
+          <Link to="/signup" className="cursor-pointer">Report Issue</Link>
         </Button>
+        </a>
         <a href="/login" style={{zIndex : "100"}}>
         <Button className="hidden md:block cursor-pointer">
           <Link to="/login" className="cursor-pointer">Login</Link>

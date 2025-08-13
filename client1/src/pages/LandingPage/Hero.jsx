@@ -7,7 +7,7 @@
 
   export default function Hero() {
     return (
-      <section
+      <section id="home"
         className="relative flex flex-col items-center justify-center h-[100dvh] w-full overflow-hidden"
         style={{
           backgroundImage: "url('/assets/rajnagar.jpg')",
@@ -29,10 +29,10 @@
           </motion.div>
           <motion.div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.7 }}>
             <Button size="lg" className="px-8 py-3 text-lg shadow-md" variant="default">
-              Report a Case
+            <a href="/signup">Report a Case</a>
             </Button>
             <Button size="lg" className="px-8 py-3 text-lg shadow-md" variant="secondary">
-              View Dashboard
+             <a href="/login">View Dashboard</a>
             </Button>
           </motion.div>
         </div>

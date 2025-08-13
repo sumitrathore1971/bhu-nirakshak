@@ -17,10 +17,10 @@ export default function CallToAction() {
         </motion.h2>
         <motion.div className="flex flex-col sm:flex-row gap-4 justify-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.7 }}>
           <Button size="lg" className="px-8 py-3 text-lg shadow-md" variant="default">
-            Start Reporting
+           <a href="/signup">Start Reporting</a>
           </Button>
           <Button size="lg" className="px-8 py-3 text-lg shadow-md" variant="secondary">
-            Launch Dashboard
+           <a href="/login">Launch Dashboard</a>
           </Button>
         </motion.div>
       </div>
