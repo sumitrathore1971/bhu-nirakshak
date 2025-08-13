@@ -85,7 +85,7 @@ export function AuthProvider({ children }) {
   function redirectForRole(role) {
     switch (role) {
       case "Citizen":
-        return "/citizen-dashboard";
+        return "/citizen/report";
       case "Enforcement":
         return "/enforce-dashboard";
       case "Admin":

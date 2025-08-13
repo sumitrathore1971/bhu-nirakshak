@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children, allow = [] }) {
   // Check if user has required role
   if (allow.length > 0 && !allow.includes(user.role)) {
     // Redirect based on user's actual role
-    const redirectPath = user.role === 'Citizen' ? '/citizen-dashboard' :
+    const redirectPath = user.role === 'Citizen' ? '/citizen/report' :
                         user.role === 'Enforcement' ? '/enforce-dashboard' :
                         user.role === 'Admin' ? '/admin-dashboard' : '/';
     

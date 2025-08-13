@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import {
-  LayoutDashboard,
   FileText,
   FolderOpen,
   Search,
@@ -14,7 +13,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/citizen-dashboard' },
   { id: 'report', label: 'Report Encroachment', icon: FileText, path: '/citizen/report' },
   { id: 'my-reports', label: 'My Reports', icon: FolderOpen, path: '/citizen/my-reports' },
   { id: 'track', label: 'Track Case', icon: Search, path: '/citizen/track' },
@@ -44,16 +42,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, activePage, setAc
       className="h-screen bg-white dark:bg-neutral-950 border-r border-gray-200 dark:border-neutral-800 shadow-lg"
     >
       <div className="flex flex-col h-full">
-        <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
+        <div className="p-5 border-b border-gray-200 dark:border-neutral-800">
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-md">
-                  <span className="text-white font-bold text-sm">BN</span>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
+                 <img src="/assets/logo.png" alt="logo" />
                 </div>
                 <div>
-                  <span className="font-heading font-bold text-lg text-gray-900 dark:text-white">Citizen</span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Portal</p>
+                  <span className="font-heading font-bold text-lg text-gray-900 dark:text-white">Bhu-Nirakshak</span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Citizen Portal</p>
                 </div>
               </motion.div>
             )}
@@ -108,14 +106,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, activePage, setAc
           </button>
         </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-neutral-800">
-          {!isCollapsed && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-gray-600 dark:text-gray-400 text-sm">
-              <p className="font-medium">Bhu-Nirakshak</p>
-              <p className="text-xs">Citizen Portal</p>
-            </motion.div>
-          )}
-        </div>
+       
       </div>
     </motion.aside>
   );
