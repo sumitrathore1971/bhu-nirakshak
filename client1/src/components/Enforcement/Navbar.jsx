@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Bell, 
-  LogOut, 
   User, 
   Search,
   Menu,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,9 +85,9 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
           </div>
 
           {/* Logout */}
-          <button onClick={handleLogout} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <LogOut size={20} className="text-gray-600 dark:text-gray-300" />
-          </button>
+          <Button onClick={handleLogout} variant="destructive" className="px-3 py-2">
+            Logout
+          </Button>
         </div>
       </div>
 
