@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
+import { addBoundaryToMap } from "../../lib/boundary";
 import {
   FileText,
   CheckCircle,
@@ -11,6 +12,8 @@ import {
   Calendar,
 } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
+import "mapbox-gl-style-switcher/styles.css";
 
 const mockReports = [
   {
@@ -174,9 +177,32 @@ export default function Dashboard() {
       "top-right"
     );
 
-    map.on("load", () => {
+    const styles = [
+      { title: "Streets", uri: "mapbox://styles/mapbox/streets-v12" },
+      {
+        title: "Satellite",
+        uri: "mapbox://styles/mapbox/satellite-streets-v12",
+      },
+      { title: "Dark", uri: "mapbox://styles/mapbox/dark-v11" },
+    ];
+    map.addControl(new MapboxStyleSwitcherControl(styles), "top-left");
+
+    map.on("style.load", async () => {
+      try {
+        await addBoundaryToMap(map, { zoomThreshold: 13 });
+      } catch (e) {
+        console.error("Failed to load boundary:", e);
+      }
+    });
+
+    map.on("load", async () => {
       addOrUpdateCenterCircle(map);
       addReportMarkers(map);
+      try {
+        await addBoundaryToMap(map, { zoomThreshold: 13 });
+      } catch (e) {
+        console.error("Failed to load boundary:", e);
+      }
     });
 
     return () => {
@@ -194,7 +220,7 @@ export default function Dashboard() {
       ? "mapbox://styles/mapbox/satellite-streets-v12"
       : "mapbox://styles/mapbox/streets-v12";
     map.setStyle(style);
-    map.once("style.load", () => {
+    map.once("style.load", async () => {
       addOrUpdateCenterCircle(map);
       // Markers are DOM overlays and persist across style changes
     });

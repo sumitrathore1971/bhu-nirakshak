@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
+import "mapbox-gl-style-switcher/styles.css";
 
 const markers = [
   { lat: 22.7196, lng: 75.8577, label: "Illegal Construction #1" },
@@ -22,7 +24,7 @@ export default function LiveMapPreview() {
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/streets-v12",
       center: [75.8577, 22.7196],
-      zoom: 12.5,
+      zoom: 12,
     });
     mapRef.current = map;
 
@@ -30,6 +32,16 @@ export default function LiveMapPreview() {
       new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-right"
     );
+
+    const styles = [
+      { title: "Streets", uri: "mapbox://styles/mapbox/streets-v12" },
+      {
+        title: "Satellite",
+        uri: "mapbox://styles/mapbox/satellite-streets-v12",
+      },
+      { title: "Dark", uri: "mapbox://styles/mapbox/dark-v11" },
+    ];
+    map.addControl(new MapboxStyleSwitcherControl(styles), "top-left");
 
     markers.forEach((m) => {
       const popup = new mapboxgl.Popup({ offset: 24 }).setText(m.label);

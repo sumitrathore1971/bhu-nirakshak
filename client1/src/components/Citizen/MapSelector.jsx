@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
+import "mapbox-gl-style-switcher/styles.css";
+import { addBoundaryToMap } from "../../lib/boundary";
 
 export default function MapSelector({ value, onChange }) {
   const [baseLayer, setBaseLayer] = useState("osm");
@@ -69,6 +72,15 @@ export default function MapSelector({ value, onChange }) {
       new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-right"
     );
+    const styles = [
+      { title: "Streets", uri: "mapbox://styles/mapbox/streets-v12" },
+      {
+        title: "Satellite",
+        uri: "mapbox://styles/mapbox/satellite-streets-v12",
+      },
+      { title: "Dark", uri: "mapbox://styles/mapbox/dark-v11" },
+    ];
+    map.addControl(new MapboxStyleSwitcherControl(styles), "top-left");
 
     map.on("click", (e) => {
       const lng = e.lngLat.lng;
@@ -80,6 +92,22 @@ export default function MapSelector({ value, onChange }) {
           .addTo(map);
       } else {
         markerRef.current.setLngLat([lng, lat]);
+      }
+    });
+
+    map.on("load", async () => {
+      try {
+        await addBoundaryToMap(map, { zoomThreshold: 13 });
+      } catch (e) {
+        console.error("Failed to load boundary:", e);
+      }
+    });
+
+    map.on("style.load", async () => {
+      try {
+        await addBoundaryToMap(map, { zoomThreshold: 13 });
+      } catch (e) {
+        console.error("Failed to load boundary:", e);
       }
     });
 
