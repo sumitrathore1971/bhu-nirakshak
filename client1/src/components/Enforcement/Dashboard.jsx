@@ -58,9 +58,8 @@ const caseSummary = {
 export default function Dashboard() {
   const [selectedCase, setSelectedCase] = useState(null);
   const [mapLayers, setMapLayers] = useState({
+    streets: false,
     satellite: false,
-    cadastral: false,
-    drone: false,
   });
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -396,30 +395,15 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() =>
-                setMapLayers((prev) => ({
-                  ...prev,
-                  cadastral: !prev.cadastral,
-                }))
+                setMapLayers((p) => ({ ...p, streets: !p.streets }))
               }
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                mapLayers.cadastral
+                mapLayers.streets
                   ? "bg-primary text-white"
                   : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
-              Cadastral Boundaries
-            </button>
-            <button
-              onClick={() =>
-                setMapLayers((prev) => ({ ...prev, drone: !prev.drone }))
-              }
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                mapLayers.drone
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
-              }`}
-            >
-              Drone Imagery
+              Streets View
             </button>
           </div>
         </div>

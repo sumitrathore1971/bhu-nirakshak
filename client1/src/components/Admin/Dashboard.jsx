@@ -69,15 +69,16 @@ const kpis = {
 
 export default function AdminDashboardHome() {
   const [mapLayers, setMapLayers] = useState({
+    streets: false,
     satellite: false,
-    cadastral: false,
-    drone: false,
   });
+  const [currentView, setCurrentView] = useState("Global");
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const caseMarkersRef = useRef([]);
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   const defaultCenter = { lat: 22.7196, lng: 75.8577 };
+  const globalCenter = { lat: 23.5, lng: 78.5 }; // Broader view of central India
 
   function createCircleGeoJSON(centerLng, centerLat, radiusMeters, steps = 64) {
     const coordinates = [];
@@ -168,8 +169,8 @@ export default function AdminDashboardHome() {
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: initialStyle,
-      center: [defaultCenter.lng, defaultCenter.lat],
-      zoom: 11,
+      center: [globalCenter.lng, globalCenter.lat],
+      zoom: 5, // Start with a global view
     });
     mapRef.current = map;
 
@@ -201,6 +202,17 @@ export default function AdminDashboardHome() {
       } catch (e) {
         console.error("Failed to load boundary:", e);
       }
+
+      // Fly to Indore after a short delay for better user experience
+      setTimeout(() => {
+        map.flyTo({
+          center: [defaultCenter.lng, defaultCenter.lat],
+          zoom: 11,
+          duration: 3000, // 3 seconds animation
+          essential: true,
+        });
+        setCurrentView("Indore");
+      }, 1000); // 1 second delay
     });
 
     return () => {
@@ -353,9 +365,17 @@ export default function AdminDashboardHome() {
       {/* Map */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
-          <h2 className="text-xl font-heading font-semibold text-gray-900 dark:text-white mb-4">
-            GIS Overview
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">
+              GIS Overview
+            </h2>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Current View:{" "}
+              <span className="font-medium text-blue-600 dark:text-blue-400">
+                {currentView}
+              </span>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() =>
@@ -371,35 +391,69 @@ export default function AdminDashboardHome() {
             </button>
             <button
               onClick={() =>
-                setMapLayers((p) => ({ ...p, cadastral: !p.cadastral }))
+                setMapLayers((p) => ({ ...p, streets: !p.streets }))
               }
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                mapLayers.cadastral
+                mapLayers.streets
                   ? "bg-primary text-white"
                   : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
-              Cadastral Boundaries
+              Streets View
             </button>
             <button
-              onClick={() => setMapLayers((p) => ({ ...p, drone: !p.drone }))}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                mapLayers.drone
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
-              }`}
+              onClick={() => {
+                if (mapRef.current) {
+                  mapRef.current.flyTo({
+                    center: [defaultCenter.lng, defaultCenter.lat],
+                    zoom: 11,
+                    duration: 2000,
+                    essential: true,
+                  });
+                  setCurrentView("Indore");
+                }
+              }}
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
             >
-              Drone Imagery
+              Focus on Indore
+            </button>
+            <button
+              onClick={() => {
+                if (mapRef.current) {
+                  mapRef.current.flyTo({
+                    center: [globalCenter.lng, globalCenter.lat],
+                    zoom: 5,
+                    duration: 2000,
+                    essential: true,
+                  });
+                  setCurrentView("Global");
+                }
+              }}
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+            >
+              Global View
             </button>
           </div>
         </div>
-        <div className="h-96">
+        <div className="h-96 relative">
           {!token ? (
             <div className="w-full h-full flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">
               Set VITE_MAPBOX_TOKEN in client1/.env to view the map.
             </div>
           ) : (
-            <div ref={mapContainerRef} className="w-full h-full" />
+            <>
+              <div ref={mapContainerRef} className="w-full h-full" />
+              {currentView === "Global" && (
+                <div className="absolute top-4 left-4 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-200 dark:border-neutral-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                    🌍 Global View - Central India
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    Flying to Indore in a moment...
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

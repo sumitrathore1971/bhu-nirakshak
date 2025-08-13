@@ -1,18 +1,12 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Bell, 
-  User, 
-  Search,
-  Menu,
-  X
-} from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Bell, User, Search, Menu, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -26,7 +20,7 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
 
   const handleLogout = () => {
     logout();
-    navigate('/', { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (
@@ -44,17 +38,24 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
           >
             <Menu size={20} className="text-gray-600 dark:text-gray-300" />
           </button>
-          
+
           <div className="hidden lg:block">
-            <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">Enforcement Portal</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Bhu-Nirakshak</p>
+            <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">
+              Enforcement Portal
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Bhu-Nirakshak
+            </p>
           </div>
         </div>
 
         {/* Center Section - Search */}
         <div className="flex-1 max-w-md mx-8 hidden md:block">
           <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
             <input
               type="text"
               placeholder="Search cases, locations, or case IDs..."
@@ -67,25 +68,30 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
 
         {/* Right Section */}
         <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <button className="relative p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <Bell size={20} className="text-gray-600 dark:text-gray-300" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-          </button>
-
           {/* User Profile */}
           <div className="flex items-center space-x-3">
             <div className="hidden md:block text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">Enforcement Officer</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">IMC Staff</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                Enforcement Officer
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                IMC Staff
+              </p>
             </div>
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-md">
-              <User size={16} className="text-white" />
-            </div>
+
+            {/* Notifications */}
+            <button className="relative p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+              <Bell size={20} className="text-gray-600 dark:text-gray-300" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+            </button>
           </div>
 
           {/* Logout */}
-          <Button onClick={handleLogout} variant="destructive" className="px-3 py-2">
+          <Button
+            onClick={handleLogout}
+            variant="destructive"
+            className="px-3 py-2"
+          >
             Logout
           </Button>
         </div>
@@ -94,7 +100,10 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
       {/* Mobile Search */}
       <div className="mt-4 md:hidden">
         <form onSubmit={handleSearch} className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={20}
+          />
           <input
             type="text"
             placeholder="Search cases, locations, or case IDs..."

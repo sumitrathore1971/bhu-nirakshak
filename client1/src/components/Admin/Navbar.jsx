@@ -51,9 +51,7 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
             <Bell size={20} className="text-gray-600 dark:text-gray-300" />
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
           </button>
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-md">
-            <User size={16} className="text-white" />
-          </div>
+          
           <Button onClick={handleLogout} variant="destructive" className="px-3 py-2">
             Logout
           </Button>
