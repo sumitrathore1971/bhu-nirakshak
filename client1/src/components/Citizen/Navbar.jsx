@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
+import { useAuth } from '@/context/AuthContext';
 
 export default function CitizenNavbar({ active = 'report', onNavigate }) {
   const [open, setOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
 
   const navItems = [
     { key: 'home', name: 'Home', href: '/' },
@@ -59,7 +68,7 @@ export default function CitizenNavbar({ active = 'report', onNavigate }) {
                 className="absolute right-0 top-12 bg-white border rounded-md shadow-lg w-40 py-2 text-sm"
               >
                 <button onClick={() => setUserOpen(false)} className="block w-full text-left px-3 py-2 hover:bg-gray-50">View Profile</button>
-                <button onClick={() => setUserOpen(false)} className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Logout</button>
+                <button onClick={() => { setUserOpen(false); handleLogout(); }} className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Logout</button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -97,7 +106,7 @@ export default function CitizenNavbar({ active = 'report', onNavigate }) {
               ))}
               <div className="flex gap-2 pt-2">
                 <Button className="w-full" variant="outline">Profile</Button>
-                <Button className="w-full" variant="destructive">Logout</Button>
+                <Button className="w-full" variant="destructive" onClick={handleLogout}>Logout</Button>
               </div>
             </div>
           </motion.div>

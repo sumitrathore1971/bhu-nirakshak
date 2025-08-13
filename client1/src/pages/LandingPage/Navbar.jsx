@@ -14,6 +14,7 @@ export default function Navbar() {
     { name: "About", link: "/#about" },
     { name: "Features", link: "/#features" },
     { name: "Team", link: "/#team" },
+    { name: "Login", link: "/login" },
   ];
 
   const ref = useRef(null);
@@ -74,22 +75,26 @@ function MobileNav({ navItems, visible }) {
               className="flex rounded-lg absolute top-16 bg-white dark:bg-neutral-950 inset-x-0 z-[10000] flex-col items-start justify-start gap-4 w-full px-4 py-8 shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset]"
             >
               {navItems.map((navItem, idx) => (
-                <Link key={`link=${idx}`} to={navItem.link} onClick={() => setOpen(false)} className="relative text-neutral-600 dark:text-neutral-300">
+                <Link key={`link=${idx}`} to={navItem.link} onClick={() => setOpen(false)} className="relative text-neutral-600 dark:text-neutral-300 cursor-pointer">
                   <motion.span className="block">{navItem.name}</motion.span>
                 </Link>
               ))}
 
-              <Button asChild className="block md:hidden w-full" variant="destructive">
-                <Link to="/citizen" onClick={() => setOpen(false)}>
+              <Button className="block md:hidden w-full cursor-pointer" variant="destructive">
+                <Link to="/citizen" onClick={() => setOpen(false)} className="cursor-pointer">
                   Report Issue
                 </Link>
               </Button>
 
-              <Button asChild className="block md:hidden w-full">
-                <Link to={CONSTANTS.LOGIN_LINK} onClick={() => setOpen(false)}>
-                  Login
-                </Link>
-              </Button>
+              <button 
+                onClick={() => {
+                  setOpen(false);
+                  window.location.href = CONSTANTS.LOGIN_LINK;
+                }}
+                className="block md:hidden w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 py-2 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
+              >
+                Login
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -106,7 +111,7 @@ function DesktopNavInner({ navItems, visible, hovered, setHovered }) {
         {navItems.map((navItem, idx) => (
           <Link
             onMouseEnter={() => setHovered(idx)}
-            className="text-neutral-600 dark:text-neutral-300 relative px-4 py-2"
+            className="text-neutral-600 dark:text-neutral-300 relative px-4 py-2 cursor-pointer"
             key={`link=${idx}`}
             to={navItem.link}
           >
@@ -118,8 +123,8 @@ function DesktopNavInner({ navItems, visible, hovered, setHovered }) {
         ))}
       </motion.div>
       <div className="flex items-center gap-4">
-        <Button asChild className="hidden md:block" variant="destructive">
-          <Link to="/citizen">Report Issue</Link>
+        <Button className="hidden md:block cursor-pointer" variant="destructive">
+          <Link to="/citizen" className="cursor-pointer">Report Issue</Link>
         </Button>
         <AnimatePresence mode="popLayout" initial={false}>
           {!visible && (
@@ -129,9 +134,12 @@ function DesktopNavInner({ navItems, visible, hovered, setHovered }) {
               exit={{ x: 100, opacity: [0, 0, 0] }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <Button asChild className="hidden md:block">
-                <Link to={CONSTANTS.LOGIN_LINK}>Login</Link>
-              </Button>
+              <button 
+                onClick={() => window.location.href = CONSTANTS.LOGIN_LINK}
+                className="hidden md:block inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 py-2 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
+              >
+                Login
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
