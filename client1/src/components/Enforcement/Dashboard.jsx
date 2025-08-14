@@ -393,18 +393,6 @@ export default function Dashboard() {
             >
               Satellite View
             </button>
-            <button
-              onClick={() =>
-                setMapLayers((p) => ({ ...p, streets: !p.streets }))
-              }
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                mapLayers.streets
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
-              }`}
-            >
-              Streets View
-            </button>
           </div>
         </div>
 

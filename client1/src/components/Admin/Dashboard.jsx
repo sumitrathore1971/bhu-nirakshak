@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import { addBoundaryToMap } from "../../lib/boundary";
 import {
   FileText,
@@ -11,8 +12,13 @@ import {
   Filter,
   Calendar,
   MapPin,
+  Edit3,
+  Trash2,
+  Save,
+  X,
 } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
 import "mapbox-gl-style-switcher/styles.css";
 
@@ -73,12 +79,61 @@ export default function AdminDashboardHome() {
     satellite: false,
   });
   const [currentView, setCurrentView] = useState("Global");
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawnFeatures, setDrawnFeatures] = useState([]);
+  const [selectedFeature, setSelectedFeature] = useState(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [drawingTag, setDrawingTag] = useState("");
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  const drawRef = useRef(null);
   const caseMarkersRef = useRef([]);
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   const defaultCenter = { lat: 22.7196, lng: 75.8577 };
   const globalCenter = { lat: 23.5, lng: 78.5 }; // Broader view of central India
+
+  // Calculate area of a polygon in square kilometers
+  function calculateArea(coordinates) {
+    if (coordinates.length < 3) return 0;
+
+    let area = 0;
+    for (let i = 0; i < coordinates.length; i++) {
+      const j = (i + 1) % coordinates.length;
+      area += coordinates[i][0] * coordinates[j][1];
+      area -= coordinates[j][0] * coordinates[i][1];
+    }
+    area = Math.abs(area) / 2;
+
+    // Convert to square kilometers (approximate)
+    const earthRadius = 6371; // km
+    return area * (Math.PI / 180) * (Math.PI / 180) * earthRadius * earthRadius;
+  }
+
+  // Calculate length of a line in kilometers
+  function calculateLength(coordinates) {
+    if (coordinates.length < 2) return 0;
+
+    let length = 0;
+    for (let i = 0; i < coordinates.length - 1; i++) {
+      const lat1 = (coordinates[i][1] * Math.PI) / 180;
+      const lat2 = (coordinates[i + 1][1] * Math.PI) / 180;
+      const dLat =
+        ((coordinates[i + 1][1] - coordinates[i][1]) * Math.PI) / 180;
+      const dLng =
+        ((coordinates[i + 1][0] - coordinates[i][0]) * Math.PI) / 180;
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1) *
+          Math.cos(lat2) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      length += 6371 * c; // Earth radius in km
+    }
+    return length;
+  }
 
   function createCircleGeoJSON(centerLng, centerLat, radiusMeters, steps = 64) {
     const coordinates = [];
@@ -174,6 +229,128 @@ export default function AdminDashboardHome() {
     });
     mapRef.current = map;
 
+    // Initialize Draw plugin
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: {
+        polygon: true,
+        trash: true,
+        line_string: true,
+        point: true,
+      },
+      styles: [
+        // Polygon fill
+        {
+          id: "gl-draw-polygon-fill",
+          type: "fill",
+          filter: ["all", ["==", "$type", "Polygon"], ["!=", "mode", "static"]],
+          paint: {
+            "fill-color": "#088",
+            "fill-outline-color": "#088",
+            "fill-opacity": 0.1,
+          },
+        },
+        // Polygon outline
+        {
+          id: "gl-draw-polygon-stroke-active",
+          type: "line",
+          filter: ["all", ["==", "$type", "Polygon"], ["==", "active", "true"]],
+          layout: {
+            "line-cap": "round",
+            "line-join": "round",
+          },
+          paint: {
+            "line-color": "#088",
+            "line-dasharray": [0.2, 2],
+            "line-width": 2,
+          },
+        },
+        // Line
+        {
+          id: "gl-draw-line-active",
+          type: "line",
+          filter: [
+            "all",
+            ["==", "$type", "LineString"],
+            ["==", "active", "true"],
+          ],
+          layout: {
+            "line-cap": "round",
+            "line-join": "round",
+          },
+          paint: {
+            "line-color": "#088",
+            "line-dasharray": [0.2, 2],
+            "line-width": 2,
+          },
+        },
+        // Point
+        {
+          id: "gl-draw-point-active",
+          type: "circle",
+          filter: ["all", ["==", "$type", "Point"], ["==", "active", "true"]],
+          paint: {
+            "circle-radius": 6,
+            "circle-color": "#088",
+          },
+        },
+      ],
+    });
+
+    map.addControl(draw, "top-left");
+    drawRef.current = draw;
+
+    // Handle draw events
+    map.on("draw.create", (e) => {
+      const features = draw.getAll();
+      // Calculate properties for new features
+      features.features.forEach((feature) => {
+        if (feature.geometry.type === "Polygon") {
+          feature.properties.area = calculateArea(
+            feature.geometry.coordinates[0]
+          );
+        } else if (feature.geometry.type === "LineString") {
+          feature.properties.length = calculateLength(
+            feature.geometry.coordinates
+          );
+        }
+      });
+      setDrawnFeatures(features.features);
+      console.log("Created features:", features.features);
+    });
+
+    map.on("draw.update", (e) => {
+      const features = draw.getAll();
+      // Recalculate properties for updated features
+      features.features.forEach((feature) => {
+        if (feature.geometry.type === "Polygon") {
+          feature.properties.area = calculateArea(
+            feature.geometry.coordinates[0]
+          );
+        } else if (feature.geometry.type === "LineString") {
+          feature.properties.length = calculateLength(
+            feature.geometry.coordinates
+          );
+        }
+      });
+      setDrawnFeatures(features.features);
+      console.log("Updated features:", features.features);
+    });
+
+    map.on("draw.delete", (e) => {
+      const features = draw.getAll();
+      setDrawnFeatures(features.features);
+      console.log("Deleted features:", features.features);
+    });
+
+    map.on("draw.selectionchange", (e) => {
+      if (e.features.length > 0) {
+        setSelectedFeature(e.features[0]);
+      } else {
+        setSelectedFeature(null);
+      }
+    });
+
     map.addControl(
       new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-right"
@@ -218,8 +395,12 @@ export default function AdminDashboardHome() {
     return () => {
       caseMarkersRef.current.forEach((m) => m.remove());
       caseMarkersRef.current = [];
+      if (drawRef.current) {
+        map.removeControl(drawRef.current);
+      }
       map.remove();
       mapRef.current = null;
+      drawRef.current = null;
     };
   }, [token]);
 
@@ -241,6 +422,71 @@ export default function AdminDashboardHome() {
       : risk >= 60
       ? "text-yellow-600"
       : "text-green-600";
+
+  const toggleDrawMode = () => {
+    if (!drawRef.current) return;
+
+    if (drawMode) {
+      // Exit draw mode
+      drawRef.current.changeMode("simple_select");
+      setDrawMode(false);
+    } else {
+      // Enter draw mode
+      drawRef.current.changeMode("draw_polygon");
+      setDrawMode(true);
+    }
+  };
+
+  const clearAllDrawings = () => {
+    if (drawRef.current) {
+      drawRef.current.deleteAll();
+      setDrawnFeatures([]);
+    }
+  };
+
+  const saveDrawings = () => {
+    if (drawnFeatures.length > 0) {
+      setShowSaveDialog(true);
+    }
+  };
+
+  const handleSaveWithTag = () => {
+    if (drawnFeatures.length > 0 && drawingTag.trim()) {
+      // Create enhanced data structure with metadata
+      const enhancedData = {
+        metadata: {
+          tagName: drawingTag.trim(),
+          exportDate: new Date().toISOString(),
+          featureCount: drawnFeatures.length,
+          featureTypes: {
+            polygons: drawnFeatures.filter((f) => f.geometry.type === "Polygon")
+              .length,
+            lines: drawnFeatures.filter((f) => f.geometry.type === "LineString")
+              .length,
+            points: drawnFeatures.filter((f) => f.geometry.type === "Point")
+              .length,
+          },
+        },
+        features: drawnFeatures,
+      };
+
+      const dataStr = JSON.stringify(enhancedData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${drawingTag.trim()}-drawings.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setShowSaveDialog(false);
+      setDrawingTag("");
+    }
+  };
+
+  const cancelSave = () => {
+    setShowSaveDialog(false);
+    setDrawingTag("");
+  };
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 dark:bg-neutral-950 min-h-screen">
@@ -390,18 +636,6 @@ export default function AdminDashboardHome() {
               Satellite View
             </button>
             <button
-              onClick={() =>
-                setMapLayers((p) => ({ ...p, streets: !p.streets }))
-              }
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                mapLayers.streets
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
-              }`}
-            >
-              Streets View
-            </button>
-            <button
               onClick={() => {
                 if (mapRef.current) {
                   mapRef.current.flyTo({
@@ -413,7 +647,7 @@ export default function AdminDashboardHome() {
                   setCurrentView("Indore");
                 }
               }}
-              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
             >
               Focus on Indore
             </button>
@@ -429,11 +663,169 @@ export default function AdminDashboardHome() {
                   setCurrentView("Global");
                 }
               }}
-              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
             >
               Global View
             </button>
           </div>
+
+          {/* Draw Controls */}
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+              Drawing Tools
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={toggleDrawMode}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  drawMode
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-primary text-white hover:bg-primary/90"
+                }`}
+              >
+                {drawMode ? <X size={16} /> : <Edit3 size={16} />}
+                {drawMode ? "Exit Draw Mode" : "Enter Draw Mode"}
+              </button>
+
+              {drawnFeatures.length > 0 && (
+                <>
+                  <button
+                    onClick={saveDrawings}
+                    className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 flex items-center gap-2"
+                  >
+                    <Save size={16} />
+                    Save ({drawnFeatures.length})
+                  </button>
+                  <button
+                    onClick={clearAllDrawings}
+                    className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 flex items-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Clear All
+                  </button>
+                </>
+              )}
+            </div>
+
+            {drawnFeatures.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Features drawn: {drawnFeatures.length} | Use the drawing tools
+                  on the left side of the map
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-500">
+                  {
+                    drawnFeatures.filter((f) => f.geometry.type === "Polygon")
+                      .length
+                  }{" "}
+                  polygons,
+                  {
+                    drawnFeatures.filter(
+                      (f) => f.geometry.type === "LineString"
+                    ).length
+                  }{" "}
+                  lines,
+                  {
+                    drawnFeatures.filter((f) => f.geometry.type === "Point")
+                      .length
+                  }{" "}
+                  points
+                </div>
+              </div>
+            )}
+
+            {!drawMode && (
+              <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                💡 Tip: Click "Enter Draw Mode" to start drawing. Use the tools
+                on the left side of the map for precise control.
+              </div>
+            )}
+          </div>
+
+          {/* Save Dialog */}
+          {showSaveDialog && (
+            <div
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+              onClick={cancelSave}
+            >
+              <div
+                className="bg-white dark:bg-neutral-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200 dark:border-neutral-700"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Save Drawing
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="drawingTag"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >
+                      Drawing Tag Name
+                    </label>
+                    <input
+                      type="text"
+                      id="drawingTag"
+                      value={drawingTag}
+                      onChange={(e) => setDrawingTag(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && drawingTag.trim()) {
+                          handleSaveWithTag();
+                        } else if (e.key === "Escape") {
+                          cancelSave();
+                        }
+                      }}
+                      placeholder="Enter a name for your drawing..."
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <p>Features to save: {drawnFeatures.length}</p>
+                    <p>
+                      File will be saved as:{" "}
+                      <span className="font-mono text-xs bg-gray-100 dark:bg-neutral-700 px-2 py-1 rounded">
+                        {drawingTag.trim() || "your-tag"}-drawings.json
+                      </span>
+                    </p>
+                    <div className="mt-2 p-2 bg-gray-50 dark:bg-neutral-800 rounded text-xs">
+                      <p className="font-medium mb-1">JSON Structure:</p>
+                      <div className="font-mono text-xs space-y-1">
+                        <div>├── metadata</div>
+                        <div>
+                          │ ├── tagName: &quot;{drawingTag.trim() || "your-tag"}
+                          &quot;
+                        </div>
+                        <div>
+                          │ ├── exportDate:{" "}
+                          {new Date().toISOString().split("T")[0]}
+                        </div>
+                        <div>│ ├── featureCount: {drawnFeatures.length}</div>
+                        <div>│ └── featureTypes: &#123;...&#125;</div>
+                        <div>└── features: [{drawnFeatures.length} items]</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleSaveWithTag}
+                      disabled={!drawingTag.trim()}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Save size={16} />
+                      Save Drawing
+                    </button>
+                    <button
+                      onClick={cancelSave}
+                      className="px-4 py-2 bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div className="h-96 relative">
           {!token ? (
@@ -451,6 +843,47 @@ export default function AdminDashboardHome() {
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                     Flying to Indore in a moment...
                   </p>
+                </div>
+              )}
+
+              {/* Feature Info Panel */}
+              {selectedFeature && (
+                <div className="absolute top-4 right-4 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm rounded-lg p-4 shadow-lg border border-gray-200 dark:border-neutral-700 max-w-xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      Feature Details
+                    </h4>
+                    <button
+                      onClick={() => setSelectedFeature(null)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                    <div>
+                      <span className="font-medium">Type:</span>{" "}
+                      {selectedFeature.geometry.type}
+                    </div>
+                    {selectedFeature.properties &&
+                      selectedFeature.properties.area && (
+                        <div>
+                          <span className="font-medium">Area:</span>{" "}
+                          {selectedFeature.properties.area.toFixed(2)} km²
+                        </div>
+                      )}
+                    {selectedFeature.properties &&
+                      selectedFeature.properties.length && (
+                        <div>
+                          <span className="font-medium">Length:</span>{" "}
+                          {selectedFeature.properties.length.toFixed(2)} km
+                        </div>
+                      )}
+                    <div>
+                      <span className="font-medium">Coordinates:</span>{" "}
+                      {selectedFeature.geometry.coordinates.length} points
+                    </div>
+                  </div>
                 </div>
               )}
             </>
