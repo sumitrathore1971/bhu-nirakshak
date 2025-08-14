@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import { addBoundaryToMap } from "../../lib/boundary";
+import { useAuth } from "../../context/AuthContext";
 import {
   FileText,
   CheckCircle,
@@ -16,11 +17,15 @@ import {
   Trash2,
   Save,
   X,
+  Eye,
+  Download,
+  Database,
 } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
 import "mapbox-gl-style-switcher/styles.css";
+import drawingService from "../../services/drawingService";
 
 const mockCases = [
   {
@@ -74,6 +79,7 @@ const kpis = {
 };
 
 export default function AdminDashboardHome() {
+  const { isAuthenticated, user } = useAuth();
   const [mapLayers, setMapLayers] = useState({
     streets: false,
     satellite: false,
@@ -84,6 +90,10 @@ export default function AdminDashboardHome() {
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [drawingTag, setDrawingTag] = useState("");
+  const [savedDrawings, setSavedDrawings] = useState([]);
+  const [loadingDrawings, setLoadingDrawings] = useState(false);
+  const [selectedSavedDrawing, setSelectedSavedDrawing] = useState(null);
+  const [showSavedDrawingsList, setShowSavedDrawingsList] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const drawRef = useRef(null);
@@ -133,6 +143,33 @@ export default function AdminDashboardHome() {
       length += 6371 * c; // Earth radius in km
     }
     return length;
+  }
+
+  // Utility function to calculate bounds for features and fly to them
+  function flyToFeatures(features, label = "") {
+    if (!features || features.length === 0) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+    features.forEach((feature) => {
+      if (feature.geometry && feature.geometry.coordinates) {
+        if (feature.geometry.type === "Polygon") {
+          feature.geometry.coordinates[0].forEach((coord) => {
+            bounds.extend(coord);
+          });
+        } else if (feature.geometry.type === "LineString") {
+          feature.geometry.coordinates.forEach((coord) => {
+            bounds.extend(coord);
+          });
+        } else if (feature.geometry.type === "Point") {
+          bounds.extend(feature.geometry.coordinates);
+        }
+      }
+    });
+
+    if (!bounds.isEmpty()) {
+      console.log(`Flying to ${label} feature bounds:`, bounds);
+      mapRef.current.fitBounds(bounds, { padding: 50 });
+    }
   }
 
   function createCircleGeoJSON(centerLng, centerLat, radiusMeters, steps = 64) {
@@ -416,6 +453,13 @@ export default function AdminDashboardHome() {
     });
   }, [mapLayers.satellite]);
 
+  // Load saved drawings on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadSavedDrawings();
+    }
+  }, [isAuthenticated]);
+
   const getRiskColor = (risk) =>
     risk >= 80
       ? "text-red-600"
@@ -486,6 +530,497 @@ export default function AdminDashboardHome() {
   const cancelSave = () => {
     setShowSaveDialog(false);
     setDrawingTag("");
+  };
+
+  // Load saved drawings from backend
+  const loadSavedDrawings = async () => {
+    if (!isAuthenticated) {
+      console.log("User not authenticated, skipping load saved drawings");
+      return;
+    }
+
+    try {
+      setLoadingDrawings(true);
+      const response = await drawingService.getDrawings();
+      if (response.success) {
+        setSavedDrawings(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to load saved drawings:", error);
+    } finally {
+      setLoadingDrawings(false);
+    }
+  };
+
+  // Save drawing to backend
+  const saveDrawingToBackend = async () => {
+    if (!isAuthenticated) {
+      alert("Please log in to save drawings.");
+      return;
+    }
+
+    if (drawnFeatures.length > 0 && drawingTag.trim()) {
+      try {
+        const enhancedData = {
+          tagName: drawingTag.trim(),
+          features: drawnFeatures,
+          metadata: {
+            tagName: drawingTag.trim(),
+            exportDate: new Date().toISOString(),
+            featureCount: drawnFeatures.length,
+            featureTypes: {
+              polygons: drawnFeatures.filter(
+                (f) => f.geometry.type === "Polygon"
+              ).length,
+              lines: drawnFeatures.filter(
+                (f) => f.geometry.type === "LineString"
+              ).length,
+              points: drawnFeatures.filter((f) => f.geometry.type === "Point")
+                .length,
+            },
+          },
+        };
+
+        const response = await drawingService.saveDrawing(enhancedData);
+        if (response.success) {
+          // Refresh saved drawings list
+          await loadSavedDrawings();
+          setShowSaveDialog(false);
+          setDrawingTag("");
+          // Clear current drawings
+          if (drawRef.current) {
+            drawRef.current.deleteAll();
+            setDrawnFeatures([]);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to save drawing to backend:", error);
+        alert("Failed to save drawing. Please try again.");
+      }
+    }
+  };
+
+  // Load a saved drawing onto the map
+  const loadSavedDrawing = async (drawingId) => {
+    if (!isAuthenticated) {
+      alert("Please log in to load drawings.");
+      return;
+    }
+
+    try {
+      const response = await drawingService.getDrawing(drawingId);
+      if (response.success) {
+        const drawing = response.data;
+        console.log("Loaded drawing data:", drawing);
+        console.log("Drawing features type:", typeof drawing.features);
+        console.log("Drawing features:", drawing.features);
+        console.log("Drawing metadata:", drawing.metadata);
+
+        // Clear current drawings
+        if (drawRef.current) {
+          drawRef.current.deleteAll();
+        } else {
+          console.error("Draw reference is not available");
+          alert(
+            "Map drawing tools are not ready. Please refresh the page and try again."
+          );
+          return;
+        }
+
+        // Add saved features to the map
+        if (
+          drawing.features &&
+          Array.isArray(drawing.features) &&
+          drawing.features.length > 0
+        ) {
+          console.log("Adding features to map:", drawing.features);
+
+          // Validate GeoJSON structure
+          const validFeatures = drawing.features.filter(
+            (feature) =>
+              feature &&
+              feature.type === "Feature" &&
+              feature.geometry &&
+              feature.geometry.type &&
+              feature.geometry.coordinates
+          );
+
+          if (validFeatures.length === 0) {
+            console.error("No valid GeoJSON features found in drawing");
+            alert("The drawing contains no valid GeoJSON features to display.");
+            return;
+          }
+
+          try {
+            console.log(
+              "Valid features to add:",
+              JSON.stringify(validFeatures, null, 2)
+            );
+
+            // Create a proper GeoJSON FeatureCollection for Mapbox Draw
+            const featureCollection = {
+              type: "FeatureCollection",
+              features: validFeatures,
+            };
+
+            console.log(
+              "FeatureCollection to add:",
+              JSON.stringify(featureCollection, null, 2)
+            );
+            drawRef.current.add(featureCollection);
+
+            // Check if features were actually added
+            const allFeatures = drawRef.current.getAll();
+            console.log("All features after adding:", allFeatures);
+            console.log(
+              "Number of features in draw layer:",
+              allFeatures.features.length
+            );
+
+            // Check draw layer configuration
+            console.log("Draw layer modes:", drawRef.current.getMode());
+            console.log("Draw layer options:", drawRef.current.options);
+
+            setDrawnFeatures(validFeatures);
+            setSelectedSavedDrawing(drawing);
+
+            // Check current map view
+            const center = mapRef.current.getCenter();
+            const zoom = mapRef.current.getZoom();
+            console.log("Current map center:", center);
+            console.log("Current map zoom:", zoom);
+            console.log("Map loaded:", mapRef.current.isStyleLoaded());
+            console.log("Map style:", mapRef.current.getStyle().sources);
+
+            // Fly to the features to make sure they're visible
+            flyToFeatures(validFeatures, "main");
+          } catch (addError) {
+            console.error("Error adding features to map:", addError);
+            console.error("Error details:", {
+              message: addError.message,
+              stack: addError.stack,
+              features: validFeatures,
+            });
+            alert(
+              `Error displaying drawing features: ${
+                addError.message || "Unknown error"
+              }. The drawing data may be corrupted.`
+            );
+          }
+        } else if (
+          drawing.metadata &&
+          drawing.metadata.features &&
+          Array.isArray(drawing.metadata.features) &&
+          drawing.metadata.features.length > 0
+        ) {
+          // Fallback: try to get features from metadata
+          console.log(
+            "Using features from metadata:",
+            drawing.metadata.features
+          );
+
+          // Validate GeoJSON structure for metadata features
+          const validMetadataFeatures = drawing.metadata.features.filter(
+            (feature) =>
+              feature &&
+              feature.type === "Feature" &&
+              feature.geometry &&
+              feature.geometry.type &&
+              feature.geometry.coordinates
+          );
+
+          if (validMetadataFeatures.length === 0) {
+            console.error("No valid GeoJSON features found in metadata");
+            alert(
+              "The drawing metadata contains no valid GeoJSON features to display."
+            );
+            return;
+          }
+
+          try {
+            console.log(
+              "Valid metadata features to add:",
+              JSON.stringify(validMetadataFeatures, null, 2)
+            );
+
+            // Create a proper GeoJSON FeatureCollection for Mapbox Draw
+            const metadataFeatureCollection = {
+              type: "FeatureCollection",
+              features: validMetadataFeatures,
+            };
+
+            console.log(
+              "Metadata FeatureCollection to add:",
+              JSON.stringify(metadataFeatureCollection, null, 2)
+            );
+            drawRef.current.add(metadataFeatureCollection);
+
+            // Check if features were actually added
+            const allFeatures = drawRef.current.getAll();
+            console.log("All features after adding (metadata):", allFeatures);
+            console.log(
+              "Number of features in draw layer (metadata):",
+              allFeatures.features.length
+            );
+
+            // Check draw layer configuration
+            console.log(
+              "Draw layer modes (metadata):",
+              drawRef.current.getMode()
+            );
+            console.log(
+              "Draw layer options (metadata):",
+              drawRef.current.options
+            );
+
+            setDrawnFeatures(validMetadataFeatures);
+            setSelectedSavedDrawing(drawing);
+
+            // Check current map view
+            const center = mapRef.current.getCenter();
+            const zoom = mapRef.current.getZoom();
+            console.log("Current map center (metadata):", center);
+            console.log("Current map zoom (metadata):", zoom);
+            console.log(
+              "Map loaded (metadata):",
+              mapRef.current.isStyleLoaded()
+            );
+            console.log(
+              "Map style (metadata):",
+              mapRef.current.getStyle().sources
+            );
+
+            // Fly to the features to make sure they're visible
+            flyToFeatures(validMetadataFeatures, "metadata");
+          } catch (addError) {
+            console.error(
+              "Error adding features from metadata to map:",
+              addError
+            );
+            console.error("Error details:", {
+              message: addError.message,
+              stack: addError.stack,
+              features: validMetadataFeatures,
+            });
+            alert(
+              `Error displaying drawing features from metadata: ${
+                addError.message || "Unknown error"
+              }. The drawing data may be corrupted.`
+            );
+          }
+        } else {
+          // Fallback 1: Try to extract features from the entire drawing object
+          console.log(
+            "Attempting fallback 1: Extract features from drawing object"
+          );
+          let fallbackFeatures = [];
+
+          // Look for features in various possible locations
+          if (drawing.features && Array.isArray(drawing.features)) {
+            fallbackFeatures = drawing.features;
+          } else if (
+            drawing.data &&
+            drawing.data.features &&
+            Array.isArray(drawing.data.features)
+          ) {
+            fallbackFeatures = drawing.data.features;
+          } else if (drawing.geometry && drawing.geometry.type) {
+            // Single feature case
+            fallbackFeatures = [
+              {
+                type: "Feature",
+                geometry: drawing.geometry,
+                properties: drawing.properties || {},
+              },
+            ];
+          } else if (typeof drawing === "object") {
+            // Try to find any array that might contain features
+            for (const [key, value] of Object.entries(drawing)) {
+              if (
+                Array.isArray(value) &&
+                value.length > 0 &&
+                value[0] &&
+                value[0].type === "Feature"
+              ) {
+                fallbackFeatures = value;
+                console.log(`Found features in key: ${key}`);
+                break;
+              }
+            }
+          }
+
+          if (fallbackFeatures.length > 0) {
+            console.log(
+              "Fallback 1 successful, found features:",
+              fallbackFeatures
+            );
+
+            // Validate the fallback features
+            const validFallbackFeatures = fallbackFeatures.filter(
+              (feature) =>
+                feature &&
+                feature.type === "Feature" &&
+                feature.geometry &&
+                feature.geometry.type &&
+                feature.geometry.coordinates
+            );
+
+            if (validFallbackFeatures.length > 0) {
+              try {
+                const fallbackFeatureCollection = {
+                  type: "FeatureCollection",
+                  features: validFallbackFeatures,
+                };
+
+                console.log(
+                  "Adding fallback features:",
+                  JSON.stringify(fallbackFeatureCollection, null, 2)
+                );
+                drawRef.current.add(fallbackFeatureCollection);
+
+                // Check if features were actually added
+                const allFeatures = drawRef.current.getAll();
+                console.log("All features after fallback:", allFeatures);
+                console.log(
+                  "Number of features in draw layer (fallback):",
+                  allFeatures.features.length
+                );
+
+                setDrawnFeatures(validFallbackFeatures);
+                setSelectedSavedDrawing(drawing);
+
+                // Fly to the features
+                flyToFeatures(validFallbackFeatures, "fallback");
+
+                return; // Success, exit early
+              } catch (fallbackError) {
+                console.error("Fallback 1 failed:", fallbackError);
+              }
+            }
+          }
+
+          // Fallback 2: Try to reconstruct features from coordinates if available
+          console.log(
+            "Attempting fallback 2: Reconstruct features from coordinates"
+          );
+          if (
+            drawing.coordinates ||
+            drawing.geometry ||
+            drawing.polygon ||
+            drawing.line
+          ) {
+            let reconstructedFeatures = [];
+
+            if (drawing.coordinates && Array.isArray(drawing.coordinates)) {
+              // Assume it's a polygon if it's a nested array
+              if (Array.isArray(drawing.coordinates[0])) {
+                reconstructedFeatures.push({
+                  type: "Feature",
+                  geometry: {
+                    type: "Polygon",
+                    coordinates: [drawing.coordinates],
+                  },
+                  properties: {},
+                });
+              }
+            } else if (drawing.geometry) {
+              reconstructedFeatures.push({
+                type: "Feature",
+                geometry: drawing.geometry,
+                properties: drawing.properties || {},
+              });
+            }
+
+            if (reconstructedFeatures.length > 0) {
+              try {
+                const reconstructedFeatureCollection = {
+                  type: "FeatureCollection",
+                  features: reconstructedFeatures,
+                };
+
+                console.log(
+                  "Adding reconstructed features:",
+                  JSON.stringify(reconstructedFeatureCollection, null, 2)
+                );
+                drawRef.current.add(reconstructedFeatureCollection);
+
+                setDrawnFeatures(reconstructedFeatures);
+                setSelectedSavedDrawing(drawing);
+
+                // Fly to the features
+                flyToFeatures(reconstructedFeatures, "reconstructed");
+
+                return; // Success, exit early
+              } catch (reconstructError) {
+                console.error("Fallback 2 failed:", reconstructError);
+              }
+            }
+          }
+
+          // If all fallbacks fail, show error
+          console.warn(
+            "All fallbacks failed. No valid features found in drawing:",
+            drawing
+          );
+          alert(
+            "This drawing has no valid features to display. The data structure may be incompatible."
+          );
+        }
+
+        // Close the saved drawings list
+        setShowSavedDrawingsList(false);
+      } else {
+        console.error(
+          "Failed to load drawing - response not successful:",
+          response
+        );
+        alert("Failed to load drawing. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to load saved drawing:", error);
+      alert("Failed to load drawing. Please try again.");
+    }
+  };
+
+  // Delete a saved drawing
+  const deleteSavedDrawing = async (drawingId) => {
+    if (!isAuthenticated) {
+      alert("Please log in to delete drawings.");
+      return;
+    }
+
+    if (confirm("Are you sure you want to delete this drawing?")) {
+      try {
+        const response = await drawingService.deleteDrawing(drawingId);
+        if (response.success) {
+          // Refresh saved drawings list
+          await loadSavedDrawings();
+          // If this was the currently loaded drawing, clear it
+          if (selectedSavedDrawing && selectedSavedDrawing.id === drawingId) {
+            setSelectedSavedDrawing(null);
+            if (drawRef.current) {
+              drawRef.current.deleteAll();
+              setDrawnFeatures([]);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to delete drawing:", error);
+        alert("Failed to delete drawing. Please try again.");
+      }
+    }
+  };
+
+  // Export saved drawing as JSON file
+  const exportSavedDrawing = (drawing) => {
+    const dataStr = JSON.stringify(drawing, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${drawing.tagName}-drawings.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -687,6 +1222,14 @@ export default function AdminDashboardHome() {
                 {drawMode ? "Exit Draw Mode" : "Enter Draw Mode"}
               </button>
 
+              <button
+                onClick={() => setShowSavedDrawingsList(!showSavedDrawingsList)}
+                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/30 flex items-center gap-2"
+              >
+                <Database size={16} />
+                Saved Drawings ({savedDrawings.length})
+              </button>
+
               {drawnFeatures.length > 0 && (
                 <>
                   <button
@@ -808,12 +1351,12 @@ export default function AdminDashboardHome() {
                   </div>
                   <div className="flex gap-3 pt-2">
                     <button
-                      onClick={handleSaveWithTag}
+                      onClick={saveDrawingToBackend}
                       disabled={!drawingTag.trim()}
                       className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <Save size={16} />
-                      Save Drawing
+                      Save to Database
                     </button>
                     <button
                       onClick={cancelSave}
@@ -964,6 +1507,138 @@ export default function AdminDashboardHome() {
           </table>
         </div>
       </div>
+
+      {/* Saved Drawings List */}
+      {showSavedDrawingsList && (
+        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800">
+          <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">
+                Saved Drawings
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadSavedDrawings}
+                  disabled={loadingDrawings}
+                  className="px-3 py-2 text-sm font-medium transition-colors bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg disabled:opacity-50"
+                >
+                  {loadingDrawings ? "Loading..." : "Refresh"}
+                </button>
+                <button
+                  onClick={() => setShowSavedDrawingsList(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {loadingDrawings ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
+                  Loading saved drawings...
+                </p>
+              </div>
+            ) : savedDrawings.length === 0 ? (
+              <div className="text-center py-8">
+                <Database size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">
+                  No saved drawings yet
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                  Create and save your first drawing to see it here
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {savedDrawings.map((drawing) => (
+                  <div
+                    key={drawing.id}
+                    className={`p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                      selectedSavedDrawing?.id === drawing.id
+                        ? "border-primary bg-primary/5 dark:bg-primary/10"
+                        : "border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800"
+                    }`}
+                    onClick={() => loadSavedDrawing(drawing.id)}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                        {drawing.tagName}
+                      </h3>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportSavedDrawing(drawing);
+                          }}
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                          title="Export as JSON"
+                        >
+                          <Download size={16} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSavedDrawing(drawing.id);
+                          }}
+                          className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                          title="Delete drawing"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center justify-between">
+                        <span>Features:</span>
+                        <span className="font-medium">
+                          {drawing.featureCount}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Created:</span>
+                        <span className="font-medium">
+                          {new Date(drawing.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        {drawing.featureTypes.polygons > 0 && (
+                          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded">
+                            {drawing.featureTypes.polygons} Polygons
+                          </span>
+                        )}
+                        {drawing.featureTypes.lines > 0 && (
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded">
+                            {drawing.featureTypes.lines} Lines
+                          </span>
+                        )}
+                        {drawing.featureTypes.points > 0 && (
+                          <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded">
+                            {drawing.featureTypes.points} Points
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedSavedDrawing?.id === drawing.id && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-neutral-700">
+                        <div className="flex items-center gap-2 text-primary text-sm">
+                          <Eye size={16} />
+                          <span>Currently Loaded</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

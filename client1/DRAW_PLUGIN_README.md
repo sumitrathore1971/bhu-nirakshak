@@ -13,7 +13,8 @@ The admin dashboard now includes a comprehensive drawing plugin that allows admi
 ### Controls
 
 - **Enter/Exit Draw Mode**: Toggle between drawing and selection modes
-- **Save Drawings**: Export all drawn features as GeoJSON with custom tag names
+- **Save Drawings**: Save drawings to PostGIS database with custom tag names
+- **Saved Drawings**: View and manage all saved drawings
 - **Clear All**: Remove all drawn features from the map
 - **Feature Info Panel**: View details about selected features
 
@@ -38,9 +39,17 @@ The admin dashboard now includes a comprehensive drawing plugin that allows admi
 
 1. Click the "Save" button after creating features
 2. Enter a custom tag name for your drawing in the dialog
-3. The file will be saved as `[your-tag-name]-drawings.json`
+3. Click "Save to Database" to store in PostGIS
 4. Use descriptive names like "Indore-City-Center" or "Rajwada-Boundary"
 5. Press Enter to save or Escape to cancel
+
+### Managing Saved Drawings
+
+1. Click "Saved Drawings" button to view all saved drawings
+2. Click on any drawing card to load it onto the map
+3. Use the export button to download as JSON file
+4. Use the delete button to remove drawings from database
+5. Currently loaded drawing is highlighted with "Currently Loaded" indicator
 
 ### Editing Features
 
@@ -51,7 +60,8 @@ The admin dashboard now includes a comprehensive drawing plugin that allows admi
 
 ### Managing Features
 
-- **Save**: Export all features as a GeoJSON file with custom naming
+- **Save to Database**: Store drawings in PostGIS with metadata
+- **Saved Drawings**: View, load, and manage all saved drawings
 - **Clear All**: Remove all drawn features
 - **Feature Count**: View total number of features and breakdown by type
 
@@ -70,6 +80,8 @@ When a feature is selected, an info panel appears showing:
 
 - `@mapbox/mapbox-gl-draw`: Core drawing functionality
 - `mapbox-gl`: Base mapping library
+- `sequelize`: Database ORM for PostGIS integration
+- `pg`: PostgreSQL driver for Node.js
 
 ### Color Scheme
 
@@ -82,18 +94,20 @@ The draw plugin buttons now use a consistent color scheme that matches the websi
 
 ### File Structure
 
-- **Dashboard.jsx**: Main implementation with draw controls
+- **Dashboard.jsx**: Main implementation with draw controls and saved drawings management
+- **drawingService.js**: API service for backend communication
 - **CSS**: Styling for draw controls and feature display
-- **State Management**: React state for draw mode and features
+- **State Management**: React state for draw mode, features, and saved drawings
 
 ### Data Format
 
-All drawn features are stored as GeoJSON and can be exported for:
+All drawn features are stored as GeoJSON in PostGIS and can be:
 
-- Further analysis in GIS software
-- Integration with other systems
-- Backup and restoration
-- Sharing with other users
+- **Persisted**: Automatically saved to database with metadata
+- **Retrieved**: Loaded back onto the map for editing/viewing
+- **Exported**: Downloaded as JSON files for external use
+- **Shared**: Accessed by other users through the database
+- **Backed Up**: Securely stored with version control
 
 ### File Naming Convention
 
@@ -138,11 +152,13 @@ The exported JSON now includes comprehensive metadata:
 3. **Feature Selection**: Click on features to see detailed information
 4. **Area Calculation**: Polygon areas are automatically calculated in square kilometers
 5. **Length Calculation**: Line lengths are automatically calculated in kilometers
-6. **Smart Naming**: Use descriptive tag names for better file organization
-7. **Quick Save**: Press Enter in the save dialog to quickly save your drawings
+6. **Smart Naming**: Use descriptive tag names for better database organization
+7. **Quick Save**: Press Enter in the save dialog to quickly save to database
 8. **Cancel Save**: Press Escape to cancel the save operation
-9. **Enhanced JSON**: Exported files include metadata with tag name, date, and feature counts
-10. **Data Preservation**: Tag names are embedded in the JSON for future reference
+9. **Database Storage**: All drawings are automatically saved to PostGIS with metadata
+10. **Easy Retrieval**: Click on saved drawing cards to load them back onto the map
+11. **Export Options**: Download drawings as JSON files for external use
+12. **Collaboration**: Share drawings with team members through the database
 
 ## Browser Compatibility
 
@@ -152,9 +168,43 @@ The draw plugin works in all modern browsers that support:
 - Canvas rendering
 - Touch events (for mobile devices)
 
+## Backend Integration
+
+### PostGIS Database
+
+The system now integrates with PostGIS for persistent storage:
+
+- **Automatic Sync**: Database tables are created automatically on startup
+- **User Isolation**: Each user's drawings are stored separately
+- **Soft Delete**: Drawings are marked as inactive rather than permanently removed
+- **Metadata Storage**: Complete drawing information including coordinates and properties
+
+### API Endpoints
+
+- `GET /api/drawings` - Fetch all drawings for current user
+- `GET /api/drawings/:id` - Get specific drawing by ID
+- `POST /api/drawings` - Save new drawing to database
+- `PUT /api/drawings/:id` - Update existing drawing
+- `DELETE /api/drawings/:id` - Soft delete drawing
+- `GET /api/drawings/stats/summary` - Get drawing statistics
+
+### Environment Variables
+
+Required backend environment variables:
+
+```
+PGUSER=postgres
+PGHOST=localhost
+PGDATABASE=postgres
+PGPASSWORD=your_password
+PGPORT=5432
+```
+
 ## Troubleshooting
 
 - **Features not appearing**: Check browser console for errors
 - **Drawing tools missing**: Ensure Mapbox token is properly configured
+- **Database connection issues**: Verify PostGIS credentials and connection
+- **Save failures**: Check authentication token and backend connectivity
 - **Performance issues**: Limit the number of complex features on large maps
 - **Export failures**: Check browser download settings and permissions

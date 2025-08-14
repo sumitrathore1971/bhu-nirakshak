@@ -5,12 +5,15 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/auth.js";
 import reportsRoutes from "./routes/reports.js";
 import usersRoutes from "./routes/users.js";
+import drawingsRoutes from "./routes/drawings.js";
 import { Pool } from "pg";
+import { sequelize } from "./config/database.js";
+import Drawing from "./models/Drawing.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // console.log(process.env.MONGODB_URl);
@@ -101,6 +104,8 @@ console.log("Mounting reports routes at /api/reports");
 app.use("/api/reports", reportsRoutes);
 console.log("Mounting users routes at /api/users");
 app.use("/api/users", usersRoutes);
+console.log("Mounting drawings routes at /api/drawings");
+app.use("/api/drawings", drawingsRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -113,17 +118,27 @@ app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully");
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Sync PostGIS database
+    await sequelize.sync({ alter: true });
+    console.log("✅ PostGIS database synced successfully");
+
+    // Connect to MongoDB
+    await mongoose.connect(MONGODB_URI);
+    console.log("✅ MongoDB connected successfully");
+
+    // Start the server
     app.listen(PORT, () => {
       console.log(`🚀 API server running on http://localhost:${PORT}`);
       console.log(`📱 Frontend URL: ${FRONTEND_URL}`);
       console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
     });
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err);
+  } catch (error) {
+    console.error("❌ Server startup failed:", error);
     process.exit(1);
-  });
+  }
+}
+
+startServer();
