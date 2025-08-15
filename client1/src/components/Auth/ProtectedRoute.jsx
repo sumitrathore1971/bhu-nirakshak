@@ -1,5 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function ProtectedRoute({ children, allow = [] }) {
   const { user, loading, isAuthenticated } = useAuth();
@@ -22,10 +22,15 @@ export default function ProtectedRoute({ children, allow = [] }) {
   // Check if user has required role
   if (allow.length > 0 && !allow.includes(user.role)) {
     // Redirect based on user's actual role
-    const redirectPath = user.role === 'Citizen' ? '/citizen/report' :
-                        user.role === 'Enforcement' ? '/enforce-dashboard' :
-                        user.role === 'Admin' ? '/admin-dashboard' : '/';
-    
+    const redirectPath =
+      user.role === "Citizen"
+        ? "/citizen/report"
+        : user.role === "Enforcement"
+        ? "/enforce-dashboard"
+        : user.role === "Admin"
+        ? "/admin-dashboard"
+        : "/";
+
     return <Navigate to={redirectPath} replace />;
   }
 

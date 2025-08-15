@@ -1,9 +1,12 @@
 // Normalize API base URL: prefer VITE_API_BASE (used by AuthContext),
 // fall back to VITE_API_URL, and ensure it ends with /api
 const API_BASE_URL = (() => {
-  const raw = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-  const trimmed = String(raw).replace(/\/$/, '');
-  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  const raw =
+    import.meta.env.VITE_API_BASE ||
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:8080/api";
+  const trimmed = String(raw).replace(/\/$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 })();
 
 class ReportService {
@@ -13,15 +16,15 @@ class ReportService {
 
   // Get auth token from localStorage - Fixed to match AuthContext
   getAuthToken() {
-    return localStorage.getItem('jwt') || localStorage.getItem('token');
+    return localStorage.getItem("jwt") || localStorage.getItem("token");
   }
 
   // Get auth headers
   getAuthHeaders() {
     const token = this.getAuthToken();
     return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     };
   }
 
@@ -30,14 +33,16 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to submit a report.');
+        throw new Error(
+          "Authentication required. Please log in to submit a report."
+        );
       }
 
       for (let attempt = 0; attempt < 2; attempt++) {
         const response = await fetch(`${this.baseURL}/reports`, {
-          method: 'POST',
+          method: "POST",
           headers: this.getAuthHeaders(),
-          body: JSON.stringify(reportData)
+          body: JSON.stringify(reportData),
         });
 
         const data = await response.json();
@@ -47,29 +52,32 @@ class ReportService {
         }
 
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. You do not have permission to submit reports.');
+          throw new Error(
+            "Access denied. You do not have permission to submit reports."
+          );
         }
 
-        const message = data?.message || '';
-        const isIdAllocationIssue = message.includes('Report ID already exists') ||
-          message.includes('Failed to allocate a unique Report ID') ||
-          message.includes('Temporary ID generation conflict');
+        const message = data?.message || "";
+        const isIdAllocationIssue =
+          message.includes("Report ID already exists") ||
+          message.includes("Failed to allocate a unique Report ID") ||
+          message.includes("Temporary ID generation conflict");
 
         if (isIdAllocationIssue && attempt === 0) {
           // brief backoff then retry once
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise((resolve) => setTimeout(resolve, 150));
           continue;
         }
 
-        throw new Error(message || 'Failed to submit report');
+        throw new Error(message || "Failed to submit report");
       }
 
       // Should not reach here
-      throw new Error('Failed to submit report');
+      throw new Error("Failed to submit report");
     } catch (error) {
-      console.error('Error submitting report:', error);
+      console.error("Error submitting report:", error);
       throw error;
     }
   }
@@ -79,7 +87,9 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to view your reports.');
+        throw new Error(
+          "Authentication required. Please log in to view your reports."
+        );
       }
 
       let url = `${this.baseURL}/reports/my-reports?page=${page}&limit=${limit}`;
@@ -88,24 +98,32 @@ class ReportService {
       }
 
       const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
+        method: "GET",
+        headers: this.getAuthHeaders(),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. You do not have permission to view reports.');
+          throw new Error(
+            "Access denied. You do not have permission to view reports."
+          );
         }
-        throw new Error(data.message || 'Failed to fetch reports');
+        throw new Error(data.message || "Failed to fetch reports");
       }
 
+      // Handle new response format
+      if (data.success && data.data) {
+        return data.data;
+      }
+
+      // Fallback for old format
       return data;
     } catch (error) {
-      console.error('Error fetching my reports:', error);
+      console.error("Error fetching my reports:", error);
       throw error;
     }
   }
@@ -115,30 +133,40 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to view report details.');
+        throw new Error(
+          "Authentication required. Please log in to view report details."
+        );
       }
 
       const response = await fetch(`${this.baseURL}/reports/${reportId}`, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
+        method: "GET",
+        headers: this.getAuthHeaders(),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. You do not have permission to view this report.');
+          throw new Error(
+            "Access denied. You do not have permission to view this report."
+          );
         } else if (response.status === 404) {
-          throw new Error('Report not found.');
+          throw new Error("Report not found.");
         }
-        throw new Error(data.message || 'Failed to fetch report');
+        throw new Error(data.message || "Failed to fetch report");
       }
 
+      // Handle new response format
+      if (data.success && data.data) {
+        return data.data;
+      }
+
+      // Fallback for old format
       return data;
     } catch (error) {
-      console.error('Error fetching report:', error);
+      console.error("Error fetching report:", error);
       throw error;
     }
   }
@@ -148,7 +176,9 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to update report status.');
+        throw new Error(
+          "Authentication required. Please log in to update report status."
+        );
       }
 
       const updateData = { status };
@@ -156,26 +186,31 @@ class ReportService {
         updateData.notes = notes;
       }
 
-      const response = await fetch(`${this.baseURL}/reports/${reportId}/status`, {
-        method: 'PUT',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(updateData)
-      });
+      const response = await fetch(
+        `${this.baseURL}/reports/${reportId}/status`,
+        {
+          method: "PUT",
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(updateData),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. You do not have permission to update report status.');
+          throw new Error(
+            "Access denied. You do not have permission to update report status."
+          );
         }
-        throw new Error(data.message || 'Failed to update report status');
+        throw new Error(data.message || "Failed to update report status");
       }
 
       return data;
     } catch (error) {
-      console.error('Error updating report status:', error);
+      console.error("Error updating report status:", error);
       throw error;
     }
   }
@@ -185,29 +220,34 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to add notes.');
+        throw new Error("Authentication required. Please log in to add notes.");
       }
 
-      const response = await fetch(`${this.baseURL}/reports/${reportId}/notes`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({ content, isInternal })
-      });
+      const response = await fetch(
+        `${this.baseURL}/reports/${reportId}/notes`,
+        {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ content, isInternal }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. You do not have permission to add notes.');
+          throw new Error(
+            "Access denied. You do not have permission to add notes."
+          );
         }
-        throw new Error(data.message || 'Failed to add note');
+        throw new Error(data.message || "Failed to add note");
       }
 
       return data;
     } catch (error) {
-      console.error('Error adding note:', error);
+      console.error("Error adding note:", error);
       throw error;
     }
   }
@@ -217,34 +257,42 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to view all reports.');
+        throw new Error(
+          "Authentication required. Please log in to view all reports."
+        );
       }
 
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        ...filters
+        ...filters,
       });
 
       const response = await fetch(`${this.baseURL}/reports?${queryParams}`, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
+        method: "GET",
+        headers: this.getAuthHeaders(),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. Admin privileges required.');
+          throw new Error("Access denied. Admin privileges required.");
         }
-        throw new Error(data.message || 'Failed to fetch reports');
+        throw new Error(data.message || "Failed to fetch reports");
       }
 
+      // Handle new response format
+      if (data.success && data.data) {
+        return data;
+      }
+
+      // Fallback for old format
       return data;
     } catch (error) {
-      console.error('Error fetching all reports:', error);
+      console.error("Error fetching all reports:", error);
       throw error;
     }
   }
@@ -254,28 +302,32 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to view statistics.');
+        throw new Error(
+          "Authentication required. Please log in to view statistics."
+        );
       }
 
       const response = await fetch(`${this.baseURL}/reports/stats/overview`, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
+        method: "GET",
+        headers: this.getAuthHeaders(),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. Admin/Enforcement privileges required.');
+          throw new Error(
+            "Access denied. Admin/Enforcement privileges required."
+          );
         }
-        throw new Error(data.message || 'Failed to fetch statistics');
+        throw new Error(data.message || "Failed to fetch statistics");
       }
 
       return data;
     } catch (error) {
-      console.error('Error fetching report statistics:', error);
+      console.error("Error fetching report statistics:", error);
       throw error;
     }
   }
@@ -285,29 +337,34 @@ class ReportService {
     try {
       const token = this.getAuthToken();
       if (!token) {
-        throw new Error('Authentication required. Please log in to assign reports.');
+        throw new Error(
+          "Authentication required. Please log in to assign reports."
+        );
       }
 
-      const response = await fetch(`${this.baseURL}/reports/${reportId}/assign`, {
-        method: 'PUT',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({ assignedTo })
-      });
+      const response = await fetch(
+        `${this.baseURL}/reports/${reportId}/assign`,
+        {
+          method: "PUT",
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ assignedTo }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         } else if (response.status === 403) {
-          throw new Error('Access denied. Admin privileges required.');
+          throw new Error("Access denied. Admin privileges required.");
         }
-        throw new Error(data.message || 'Failed to assign report');
+        throw new Error(data.message || "Failed to assign report");
       }
 
       return data;
     } catch (error) {
-      console.error('Error assigning report:', error);
+      console.error("Error assigning report:", error);
       throw error;
     }
   }
@@ -318,13 +375,13 @@ class ReportService {
     // For now, return a mock response
     return {
       uploaded: true,
-      files: files.map(file => ({
+      files: files.map((file) => ({
         filename: file.name,
         originalName: file.name,
         mimeType: file.type,
         size: file.size,
-        url: URL.createObjectURL(file)
-      }))
+        url: URL.createObjectURL(file),
+      })),
     };
   }
 
@@ -333,44 +390,44 @@ class ReportService {
     const errors = [];
 
     if (!data.fullName?.trim()) {
-      errors.push('Full name is required');
+      errors.push("Full name is required");
     }
 
     if (!data.phone?.trim()) {
-      errors.push('Phone number is required');
+      errors.push("Phone number is required");
     } else if (!/^[0-9]{10}$/.test(data.phone.trim())) {
-      errors.push('Phone number must be 10 digits');
+      errors.push("Phone number must be 10 digits");
     }
 
     if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.push('Invalid email format');
+      errors.push("Invalid email format");
     }
 
     if (!data.title?.trim()) {
-      errors.push('Report title is required');
+      errors.push("Report title is required");
     }
 
     if (!data.description?.trim()) {
-      errors.push('Description is required');
+      errors.push("Description is required");
     }
 
     if (!data.category) {
-      errors.push('Category is required');
+      errors.push("Category is required");
     }
 
     if (!data.date) {
-      errors.push('Date of observation is required');
+      errors.push("Date of observation is required");
     }
 
     const latOk = Number.isFinite(data.location?.lat);
     const lngOk = Number.isFinite(data.location?.lng);
     if (!latOk || !lngOk) {
-      errors.push('Location coordinates are required');
+      errors.push("Location coordinates are required");
     }
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -382,10 +439,10 @@ class ReportService {
   // Get current user info (if available)
   getCurrentUser() {
     try {
-      const userStr = localStorage.getItem('user');
+      const userStr = localStorage.getItem("user");
       return userStr ? JSON.parse(userStr) : null;
     } catch (error) {
-      console.error('Error parsing user data:', error);
+      console.error("Error parsing user data:", error);
       return null;
     }
   }

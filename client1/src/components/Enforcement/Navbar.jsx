@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bell, User, Search, Menu, X } from "lucide-react";
+import { User, Search, Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import NotificationPanel from "../Admin/NotificationPanel.jsx";
 
 export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,10 +81,7 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-              <Bell size={20} className="text-gray-600 dark:text-gray-300" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationPanel />
           </div>
 
           {/* Logout */}

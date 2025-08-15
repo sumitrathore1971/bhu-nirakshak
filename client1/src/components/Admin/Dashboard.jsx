@@ -1,74 +1,33 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
-import MapboxDraw from "@mapbox/mapbox-gl-draw";
-import { addBoundaryToMap } from "../../lib/boundary";
-import { useAuth } from "../../context/AuthContext";
-import {
-  FileText,
-  CheckCircle,
-  AlertTriangle,
-  Clock,
-  ClipboardList,
-  Filter,
-  Calendar,
-  MapPin,
-  Edit3,
-  Trash2,
-  Save,
-  X,
-  Eye,
-  Download,
-  Database,
-} from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
 import "mapbox-gl-style-switcher/styles.css";
-import drawingService from "../../services/drawingService";
-
-const mockCases = [
-  {
-    id: "CASE-101",
-    location: [22.7196, 75.8577],
-    area: "Rajwada",
-    category: "Unauthorized Construction",
-    status: "Pending",
-    submittedBy: "Citizen",
-    date: "2024-01-18",
-    risk: 82,
-  },
-  {
-    id: "CASE-102",
-    location: [22.7339, 75.8839],
-    area: "Palasia",
-    category: "Building Plan Violation",
-    status: "Verified",
-    submittedBy: "Drone",
-    date: "2024-01-17",
-    risk: 74,
-  },
-  {
-    id: "CASE-103",
-    location: [22.751, 75.8937],
-    area: "Vijay Nagar",
-    category: "Illegal Extension",
-    status: "Action Taken",
-    submittedBy: "Worker",
-    date: "2024-01-16",
-    risk: 65,
-  },
-  {
-    id: "CASE-104",
-    location: [22.678, 75.857],
-    area: "Rajendra Nagar",
-    category: "Boundary Violation",
-    status: "Closed",
-    submittedBy: "Citizen",
-    date: "2024-01-15",
-    risk: 55,
-  },
-];
+import {
+  MapPin,
+  Calendar,
+  User,
+  FileText,
+  Download,
+  Trash2,
+  Save,
+  Filter,
+  Database,
+  Eye,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  Edit3,
+  X,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext.jsx";
+import reportService from "../../services/reportService.js";
+import drawingService from "../../services/drawingService.js";
+import { addBoundaryToMap } from "../../lib/boundary";
+import { notificationEvents } from "./NotificationPanel.jsx"; // Import the global event system
 
 const kpis = {
   totalReports: 324,
@@ -80,6 +39,8 @@ const kpis = {
 
 export default function AdminDashboardHome() {
   const { isAuthenticated, user } = useAuth();
+  const [recentReports, setRecentReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [mapLayers, setMapLayers] = useState({
     streets: false,
     satellite: false,
@@ -237,16 +198,19 @@ export default function AdminDashboardHome() {
   function addCaseMarkers(map) {
     caseMarkersRef.current.forEach((m) => m.remove());
     caseMarkersRef.current = [];
-    mockCases.forEach((item) => {
-      const marker = new mapboxgl.Marker()
-        .setLngLat([item.location[1], item.location[0]])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 16 }).setHTML(
-            `<div class="p-2"><h3 class="font-semibold text-gray-900">${item.id}</h3><p class="text-sm text-gray-600">${item.category}</p><p class="text-sm">Risk: ${item.risk}</p></div>`
+    recentReports.forEach((item) => {
+      if (item.location?.coordinates?.coordinates) {
+        const [lng, lat] = item.location.coordinates.coordinates;
+        const marker = new mapboxgl.Marker()
+          .setLngLat([lng, lat])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 16 }).setHTML(
+              `<div class="p-2"><h3 class="font-semibold text-gray-900">${item.reportId}</h3><p class="text-sm text-gray-600">${item.category}</p><p class="text-sm">Status: ${item.status}</p></div>`
+            )
           )
-        )
-        .addTo(map);
-      caseMarkersRef.current.push(marker);
+          .addTo(map);
+        caseMarkersRef.current.push(marker);
+      }
     });
   }
 
@@ -453,10 +417,51 @@ export default function AdminDashboardHome() {
     });
   }, [mapLayers.satellite]);
 
-  // Load saved drawings on component mount
+  // Fetch recent reports
+  const fetchRecentReports = async () => {
+    try {
+      setReportsLoading(true);
+      const response = await reportService.getAllReports(1, 10);
+      // Handle both new and old response formats
+      if (response.success || response.data) {
+        const data = response.data || response;
+        setRecentReports(data.reports || []);
+
+        // Update map markers if map is loaded
+        if (mapRef.current && mapRef.current.isStyleLoaded()) {
+          addCaseMarkers(mapRef.current);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching recent reports:", error);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  // Handle new report notifications
+  const handleNewReport = (data) => {
+    console.log("📢 Received new report notification in dashboard:", data);
+    // Add the new report to the beginning of the list
+    setRecentReports((prev) => [data.report, ...prev.slice(0, -1)]); // Keep the same number of items
+
+    // Update map markers if map is loaded
+    if (mapRef.current && mapRef.current.isStyleLoaded()) {
+      addCaseMarkers(mapRef.current);
+    }
+  };
+
+  // Subscribe to global notification events
+  useEffect(() => {
+    const unsubscribe = notificationEvents.subscribe(handleNewReport);
+    return unsubscribe;
+  }, []);
+
+  // Load saved drawings and recent reports on component mount
   useEffect(() => {
     if (isAuthenticated) {
       loadSavedDrawings();
+      fetchRecentReports();
     }
   }, [isAuthenticated]);
 
@@ -1466,43 +1471,71 @@ export default function AdminDashboardHome() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-neutral-800">
-              {mockCases.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    {item.id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                    <MapPin size={16} className="text-gray-400" /> {item.area}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {item.category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {item.submittedBy}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {item.date}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.status === "Pending"
-                          ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
-                          : item.status === "Verified"
-                          ? "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400"
-                          : item.status === "Action Taken"
-                          ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
-                          : "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
+              {reportsLoading ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-gray-600 dark:text-gray-400 text-sm">
+                      Loading reports...
+                    </p>
                   </td>
                 </tr>
-              ))}
+              ) : recentReports.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="6"
+                    className="px-6 py-8 text-center text-gray-600 dark:text-gray-400"
+                  >
+                    No reports found
+                  </td>
+                </tr>
+              ) : (
+                recentReports.map((item) => (
+                  <tr
+                    key={item._id}
+                    className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      {item.reportId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                      <MapPin size={16} className="text-gray-400" />{" "}
+                      {item.location?.area || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {item.category}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {item.reporter?.fullName || "Anonymous"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {new Date(item.dateOfObservation).toLocaleDateString(
+                        "en-IN",
+                        {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        }
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.status === "Pending"
+                            ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
+                            : item.status === "Verified"
+                            ? "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400"
+                            : item.status === "Action Taken"
+                            ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
+                            : "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

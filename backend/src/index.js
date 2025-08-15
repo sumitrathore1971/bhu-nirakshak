@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import authRoutes from "./routes/auth.js";
 import reportsRoutes from "./routes/reports.js";
 import usersRoutes from "./routes/users.js";
@@ -14,6 +16,18 @@ import Report from "./models/Report.js";
 dotenv.config();
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:3000",
+    ],
+    credentials: true,
+    methods: ["GET", "POST"],
+  },
+});
+
 const PORT = process.env.PORT || 8080;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -35,7 +49,12 @@ console.log("Frontend URL:", FRONTEND_URL);
 // Enhanced CORS configuration
 app.use(
   cors({
-    origin: [FRONTEND_URL, "http://localhost:3000", "http://localhost:5173"],
+    origin: [
+      FRONTEND_URL,
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -43,6 +62,41 @@ app.use(
 );
 
 app.use(express.json());
+
+// Make io available to routes via middleware
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+// Socket.io connection handling
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+
+  // Join admin room for notifications
+  socket.on("join-admin", () => {
+    socket.join("admin-room");
+    console.log("Admin joined notification room:", socket.id);
+    console.log(
+      "📢 Admin room members:",
+      io.sockets.adapter.rooms.get("admin-room")?.size || 0
+    );
+  });
+
+  // Join enforcement room for notifications
+  socket.on("join-enforcement", () => {
+    socket.join("enforcement-room");
+    console.log("Enforcement officer joined notification room:", socket.id);
+    console.log(
+      "📢 Enforcement room members:",
+      io.sockets.adapter.rooms.get("enforcement-room")?.size || 0
+    );
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
 
 // Health check endpoint
 app.get("/", (_req, res) => {
@@ -143,7 +197,9 @@ async function startServer() {
         } catch (dropByNameErr) {
           try {
             await Report.collection.dropIndex({ caseId: 1 });
-            console.log("🧹 Dropped legacy reports index by key: { caseId: 1 }");
+            console.log(
+              "🧹 Dropped legacy reports index by key: { caseId: 1 }"
+            );
           } catch (dropByKeyErr) {
             console.warn(
               "⚠️ Could not drop legacy caseId index:",
@@ -156,14 +212,18 @@ async function startServer() {
       await Report.syncIndexes();
       console.log("✅ Report indexes synchronized");
     } catch (indexErr) {
-      console.warn("⚠️ Index synchronization issue:", indexErr?.message || indexErr);
+      console.warn(
+        "⚠️ Index synchronization issue:",
+        indexErr?.message || indexErr
+      );
     }
 
-    // Start the server
-    app.listen(PORT, () => {
+    // Start the server with Socket.io
+    server.listen(PORT, () => {
       console.log(`🚀 API server running on http://localhost:${PORT}`);
       console.log(`📱 Frontend URL: ${FRONTEND_URL}`);
       console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
+      console.log(`🔌 Socket.io server ready for real-time notifications`);
     });
   } catch (error) {
     console.error("❌ Server startup failed:", error);

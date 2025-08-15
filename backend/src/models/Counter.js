@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const counterSchema = new mongoose.Schema(
   {
@@ -6,18 +6,16 @@ const counterSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true
+      index: true,
     },
     seq: {
       type: Number,
       required: true,
-      default: 0
-    }
+      default: 0,
+    },
   },
   { timestamps: false }
 );
 
-const Counter = mongoose.model('Counter', counterSchema);
+const Counter = mongoose.model("Counter", counterSchema);
 export default Counter;
-
-

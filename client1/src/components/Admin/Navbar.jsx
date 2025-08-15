@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Bell, User, Menu } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { Search, User, Menu } from "lucide-react";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "../ui/button.jsx";
+import NotificationPanel from "./NotificationPanel.jsx";
 
 export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,10 +62,7 @@ export default function Navbar({ isCollapsed, setIsCollapsed, onSearch }) {
         </div>
 
         <div className="flex items-center space-x-4">
-          <button className="relative p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <Bell size={20} className="text-gray-600 dark:text-gray-300" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
-          </button>
+          <NotificationPanel />
 
           <Button
             onClick={handleLogout}
