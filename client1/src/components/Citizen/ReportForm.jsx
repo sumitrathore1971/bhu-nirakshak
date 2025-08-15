@@ -67,7 +67,7 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!requiredOk || isSubmitting) return;
+    if (isSubmitting) return;
 
     // Check authentication before submitting
     if (!isAuthenticated) {
@@ -96,21 +96,21 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
         }
       };
 
-      // Validate data
+      // Validate data and surface missing fields immediately
       const validation = reportService.validateReportData(reportData);
       if (!validation.isValid) {
         setErrors(validation.errors.reduce((acc, error) => {
-          // Map validation errors to form fields
-          if (error.includes('name')) acc.fullName = error;
-          else if (error.includes('phone')) acc.phone = error;
-          else if (error.includes('email')) acc.email = error;
-          else if (error.includes('title')) acc.title = error;
-          else if (error.includes('Description')) acc.description = error;
-          else if (error.includes('Category')) acc.category = error;
-          else if (error.includes('date')) acc.date = error;
-          else if (error.includes('Location')) acc.location = error;
+          if (error.toLowerCase().includes('name')) acc.fullName = error;
+          else if (error.toLowerCase().includes('phone')) acc.phone = error;
+          else if (error.toLowerCase().includes('email')) acc.email = error;
+          else if (error.toLowerCase().includes('title')) acc.title = error;
+          else if (error.toLowerCase().includes('description')) acc.description = error;
+          else if (error.toLowerCase().includes('category')) acc.category = error;
+          else if (error.toLowerCase().includes('date')) acc.date = error;
+          else if (error.toLowerCase().includes('location')) acc.location = error;
           return acc;
         }, {}));
+        showFlashMessage('Please fill all required fields correctly.', 'error');
         return;
       }
 
