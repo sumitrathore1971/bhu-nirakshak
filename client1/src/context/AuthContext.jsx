@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [flashMessage, setFlashMessage] = useState(null);
 
   // Set axios baseURL immediately
   useEffect(() => {
@@ -55,6 +56,14 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
+  const showFlashMessage = (message, type = 'success') => {
+    setFlashMessage({ message, type });
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      setFlashMessage(null);
+    }, 5000);
+  };
+
   async function login({ email, password, role }) {
     try {
       const { data } = await axios.post("/auth/login", { email, password });
@@ -62,9 +71,12 @@ export function AuthProvider({ children }) {
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
+      showFlashMessage(`Welcome back, ${data.user.name}! Login successful.`, 'success');
       return redirectForRole(data.user.role);
     } catch (error) {
       console.error("Login error:", error);
+      const errorMessage = error.response?.data?.message || 'Login failed. Please check your credentials and try again.';
+      showFlashMessage(errorMessage, 'error');
       throw error;
     }
   }
@@ -81,9 +93,12 @@ export function AuthProvider({ children }) {
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
+      showFlashMessage(`Welcome, ${data.user.name}! Account created successfully.`, 'success');
       return redirectForRole(data.user.role);
     } catch (error) {
       console.error("Signup error:", error);
+      const errorMessage = error.response?.data?.message || 'Signup failed. Please try again with different credentials.';
+      showFlashMessage(errorMessage, 'error');
       throw error;
     }
   }
@@ -93,6 +108,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
+    showFlashMessage('You have been logged out successfully.', 'success');
   }
 
   function redirectForRole(role) {
@@ -118,8 +134,11 @@ export function AuthProvider({ children }) {
       logout,
       redirectForRole,
       isAuthenticated: !!token,
+      flashMessage,
+      showFlashMessage,
+      setUser,
     }),
-    [user, token, loading]
+    [user, token, loading, flashMessage]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

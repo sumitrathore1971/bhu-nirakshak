@@ -53,9 +53,80 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    console.log('Change password route called');
+    console.log('User ID:', req.user.id);
+    console.log('Request body:', req.body);
+    
+    const { newPassword } = req.body;
+    if (!newPassword) return res.status(400).json({ message: 'New password is required' });
+    if (newPassword.length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+
+    // Hash the new password
+    const hash = await bcrypt.hash(newPassword, 10);
+    console.log('Password hashed successfully');
+    
+    // Update the user's password in the database
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { password: hash },
+      { new: true }
+    ).select('_id name email role createdAt');
+
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
+    console.log('Password updated successfully for user:', updatedUser._id);
+
+    return res.json({ 
+      message: 'Password changed successfully',
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error('Error in change-password route:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.put('/profile', authMiddleware, async (req, res) => {
+  try {
+    console.log('Profile update route called');
+    console.log('User ID:', req.user.id);
+    console.log('Request body:', req.body);
+    
+    const { name, email, phone, address } = req.body;
+    
+    // Validate required fields
+    if (!name || !email) return res.status(400).json({ message: 'Name and email are required' });
+    
+    // Check if email is already taken by another user
+    const existingUser = await User.findOne({ email, _id: { $ne: req.user.id } });
+    if (existingUser) return res.status(409).json({ message: 'Email is already taken by another user' });
+
+    // Update the user's profile in the database
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { name, email, phone, address },
+      { new: true }
+    ).select('_id name email role createdAt phone address');
+
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
+    console.log('Profile updated successfully for user:', updatedUser._id);
+
+    return res.json({ 
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error('Error in profile update route:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('_id name email role createdAt');
+    const user = await User.findById(req.user.id).select('_id name email role createdAt phone address');
     if (!user) return res.status(404).json({ message: 'User not found' });
     return res.json({ user });
   } catch (err) {
