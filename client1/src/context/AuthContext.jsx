@@ -8,7 +8,14 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("jwt") || null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem("user");
+      return cached ? JSON.parse(cached) : null;
+    } catch (_) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   // Set axios baseURL immediately
@@ -30,10 +37,12 @@ export function AuthProvider({ children }) {
         if (!token) return;
         const { data } = await axios.get("/auth/me");
         setUser(data.user);
+        localStorage.setItem("user", JSON.stringify(data.user));
       } catch (error) {
         console.error("Auth bootstrap error:", error);
         setToken(null);
         localStorage.removeItem("jwt");
+        localStorage.removeItem("user");
       } finally {
         setLoading(false);
       }
@@ -42,6 +51,7 @@ export function AuthProvider({ children }) {
       bootstrap();
     } else {
       setLoading(false);
+      localStorage.removeItem("user");
     }
   }, [token]);
 
@@ -51,6 +61,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("jwt", data.token);
       setToken(data.token);
       setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
       return redirectForRole(data.user.role);
     } catch (error) {
       console.error("Login error:", error);
@@ -69,6 +80,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("jwt", data.token);
       setToken(data.token);
       setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
       return redirectForRole(data.user.role);
     } catch (error) {
       console.error("Signup error:", error);
@@ -78,6 +90,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     localStorage.removeItem("jwt");
+    localStorage.removeItem("user");
     setToken(null);
     setUser(null);
   }

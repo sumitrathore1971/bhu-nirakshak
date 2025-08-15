@@ -48,13 +48,16 @@ export default function CitizenPortal() {
   }, [location_path]);
 
   async function handleSubmit(payload) {
+    // payload is the report object returned from backend via ReportForm on success
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    const id = `BN-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-    setCaseId(id);
-    setShowConfirm(true);
-    setSubmitting(false);
-    setLocation({ lat: null, lng: null });
+    try {
+      const id = payload?.reportId || payload?.id || payload?._id || '';
+      setCaseId(id);
+      setShowConfirm(true);
+      setLocation({ lat: null, lng: null });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const renderContent = () => {

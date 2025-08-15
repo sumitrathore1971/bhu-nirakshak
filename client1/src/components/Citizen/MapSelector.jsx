@@ -46,7 +46,8 @@ export default function MapSelector({ value, onChange }) {
   function handleSelectResult(r) {
     const lat = parseFloat(r.lat);
     const lng = parseFloat(r.lon);
-    onChange({ lat, lng });
+    const areaGuess = r.address?.suburb || r.address?.neighbourhood || r.address?.city_district || r.address?.city || r.address?.town || r.address?.village || '';
+    onChange({ ...(value || {}), lat, lng, address: r.display_name, area: areaGuess });
     setResults([]);
   }
 
@@ -85,7 +86,7 @@ export default function MapSelector({ value, onChange }) {
     map.on("click", (e) => {
       const lng = e.lngLat.lng;
       const lat = e.lngLat.lat;
-      if (typeof onChange === "function") onChange({ lat, lng });
+      if (typeof onChange === "function") onChange({ ...(value || {}), lat, lng });
       if (!markerRef.current) {
         markerRef.current = new mapboxgl.Marker()
           .setLngLat([lng, lat])

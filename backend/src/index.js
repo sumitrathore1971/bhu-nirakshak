@@ -9,6 +9,7 @@ import drawingsRoutes from "./routes/drawings.js";
 import { Pool } from "pg";
 import { sequelize } from "./config/database.js";
 import Drawing from "./models/Drawing.js";
+import Report from "./models/Report.js";
 
 dotenv.config();
 
@@ -128,6 +129,35 @@ async function startServer() {
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
     console.log("✅ MongoDB connected successfully");
+
+    // Ensure MongoDB indexes are up-to-date and drop legacy ones
+    try {
+      const indexes = await Report.collection.indexes();
+      const hasLegacyCaseId = indexes.some(
+        (idx) => idx.name === "caseId_1" || (idx.key && idx.key.caseId === 1)
+      );
+      if (hasLegacyCaseId) {
+        try {
+          await Report.collection.dropIndex("caseId_1");
+          console.log("🧹 Dropped legacy reports index: caseId_1");
+        } catch (dropByNameErr) {
+          try {
+            await Report.collection.dropIndex({ caseId: 1 });
+            console.log("🧹 Dropped legacy reports index by key: { caseId: 1 }");
+          } catch (dropByKeyErr) {
+            console.warn(
+              "⚠️ Could not drop legacy caseId index:",
+              dropByKeyErr?.message || dropByNameErr?.message
+            );
+          }
+        }
+      }
+      // Sync indexes with schema (creates missing, drops extraneous)
+      await Report.syncIndexes();
+      console.log("✅ Report indexes synchronized");
+    } catch (indexErr) {
+      console.warn("⚠️ Index synchronization issue:", indexErr?.message || indexErr);
+    }
 
     // Start the server
     app.listen(PORT, () => {
