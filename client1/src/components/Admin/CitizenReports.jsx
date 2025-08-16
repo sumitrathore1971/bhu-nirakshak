@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import reportService from "../../services/reportService.js";
+import socketService from "../../services/socketService.js";
 import { notificationEvents } from "./NotificationPanel.jsx"; // Import the global event system
 
 export default function CitizenReports() {
@@ -365,12 +366,13 @@ export default function CitizenReports() {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden"
+            className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Modal Header */}
             <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">
                   {selected.reportId}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
@@ -381,83 +383,206 @@ export default function CitizenReports() {
                 onClick={() => setSelected(null)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
               >
-                <X size={20} className="text-gray-500 dark:text-gray-400" />
+                <X size={24} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Title
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {selected.title}
-                  </p>
+
+            {/* Modal Tabs */}
+            <div className="border-b border-gray-200 dark:border-neutral-800">
+              <nav className="flex space-x-8 px-6">
+                {["overview", "photos", "action-history"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() =>
+                      setSelected((prev) => ({ ...prev, activeTab: tab }))
+                    }
+                    className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      (selected.activeTab || "overview") === tab
+                        ? "border-primary text-primary"
+                        : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    }`}
+                  >
+                    {tab
+                      .split("-")
+                      .map(
+                        (word) => word.charAt(0).toUpperCase() + word.slice(1)
+                      )
+                      .join(" ")}
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            {/* Tab Content */}
+            <div className="p-6">
+              {(selected.activeTab || "overview") === "overview" && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                        Report Information
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Title:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {selected.title}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Location:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {selected.location?.area || "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Status:
+                          </span>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                              selected.status
+                            )}`}
+                          >
+                            {selected.status}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Submitted By:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {selected.reporter?.fullName || "Anonymous"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Date:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {formatDate(selected.dateOfObservation)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Phone:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {selected.reporter?.phone || "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                        Description
+                      </h3>
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {selected.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Status
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        selected.status
-                      )}`}
-                    >
-                      {selected.status}
-                    </span>
-                  </p>
+              )}
+
+              {(selected.activeTab || "overview") === "photos" && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Photos &amp; Videos
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {(selected.photos || []).length > 0 ? (
+                      selected.photos.map((photo, index) => (
+                        <div
+                          key={index}
+                          className="aspect-square bg-gray-200 dark:bg-neutral-800 rounded-lg flex items-center justify-center"
+                        >
+                          {/* Replace with actual image/video rendering if available */}
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Photo {index + 1}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        No photos available.
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Location
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {selected.location?.area || "N/A"}
-                  </p>
+              )}
+
+              {(selected.activeTab || "overview") === "action-history" && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Action History
+                  </h3>
+                  <div className="space-y-3">
+                    {(selected.actionHistory || []).length > 0 ? (
+                      selected.actionHistory.map((action, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg"
+                        >
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {action.action}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {action.date}
+                              {action.officer ? ` by ${action.officer}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        No action history available.
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Submitted By
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {selected.reporter?.fullName || "Anonymous"}
-                  </p>
-                </div>
-                <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Date
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {formatDate(selected.dateOfObservation)}
-                  </p>
-                </div>
-                <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Phone
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {selected.reporter?.phone || "N/A"}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-gray-50 dark:bg-neutral-800 rounded-lg p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  Description
-                </p>
-                <p className="text-sm text-gray-900 dark:text-white">
-                  {selected.description}
-                </p>
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-neutral-800">
-                <button className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors">
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-800">
+              <div className="flex items-center justify-end gap-3 pt-4">
+                <button
+                  className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                  onClick={async () => {
+                    if (selected) {
+                      console.log(
+                        "🔔 Admin clicking Assign to Enforcement for report:",
+                        selected
+                      );
+                      socketService.connect();
+                      const eventData = {
+                        report: selected,
+                        timestamp: Date.now(),
+                      };
+                      console.log(
+                        "🔔 Emitting assignToEnforcement event with data:",
+                        eventData
+                      );
+                      socketService.socket.emit(
+                        "assignToEnforcement",
+                        eventData
+                      );
+                      console.log("🔔 Event emitted successfully");
+                      setSelected(null); // Close modal
+                    }
+                  }}
+                >
                   Assign to Enforcement
                 </button>
                 <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                   Verify Case
-                </button>
-                <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors">
-                  Merge Reports
                 </button>
               </div>
             </div>

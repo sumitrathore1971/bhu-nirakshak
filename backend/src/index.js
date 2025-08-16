@@ -93,6 +93,14 @@ io.on("connection", (socket) => {
     );
   });
 
+  // Handle case assignment from admin to enforcement
+  socket.on("assignToEnforcement", (data) => {
+    console.log("📋 Admin assigning case to enforcement:", data);
+    // Broadcast to all enforcement officers
+    socket.to("enforcement-room").emit("assignToEnforcement", data);
+    console.log("📢 Case assignment broadcasted to enforcement room");
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });

@@ -37,8 +37,8 @@ export function AuthProvider({ children }) {
       try {
         if (!token) return;
         const { data } = await axios.get("/auth/me");
-        setUser(data.user);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(normalizeUser(data.user));
+        localStorage.setItem("user", JSON.stringify(normalizeUser(data.user)));
       } catch (error) {
         console.error("Auth bootstrap error:", error);
         setToken(null);
@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
-  const showFlashMessage = (message, type = 'success') => {
+  const showFlashMessage = (message, type = "success") => {
     setFlashMessage({ message, type });
     // Auto-dismiss after 5 seconds
     setTimeout(() => {
@@ -69,14 +69,19 @@ export function AuthProvider({ children }) {
       const { data } = await axios.post("/auth/login", { email, password });
       localStorage.setItem("jwt", data.token);
       setToken(data.token);
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      showFlashMessage(`Welcome back, ${data.user.name}! Login successful.`, 'success');
+      setUser(normalizeUser(data.user));
+      localStorage.setItem("user", JSON.stringify(normalizeUser(data.user)));
+      showFlashMessage(
+        `Welcome back, ${data.user.name}! Login successful.`,
+        "success"
+      );
       return redirectForRole(data.user.role);
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage = error.response?.data?.message || 'Login failed. Please check your credentials and try again.';
-      showFlashMessage(errorMessage, 'error');
+      const errorMessage =
+        error.response?.data?.message ||
+        "Login failed. Please check your credentials and try again.";
+      showFlashMessage(errorMessage, "error");
       throw error;
     }
   }
@@ -91,14 +96,19 @@ export function AuthProvider({ children }) {
       });
       localStorage.setItem("jwt", data.token);
       setToken(data.token);
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      showFlashMessage(`Welcome, ${data.user.name}! Account created successfully.`, 'success');
+      setUser(normalizeUser(data.user));
+      localStorage.setItem("user", JSON.stringify(normalizeUser(data.user)));
+      showFlashMessage(
+        `Welcome, ${data.user.name}! Account created successfully.`,
+        "success"
+      );
       return redirectForRole(data.user.role);
     } catch (error) {
       console.error("Signup error:", error);
-      const errorMessage = error.response?.data?.message || 'Signup failed. Please try again with different credentials.';
-      showFlashMessage(errorMessage, 'error');
+      const errorMessage =
+        error.response?.data?.message ||
+        "Signup failed. Please try again with different credentials.";
+      showFlashMessage(errorMessage, "error");
       throw error;
     }
   }
@@ -108,7 +118,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
-    showFlashMessage('You have been logged out successfully.', 'success');
+    showFlashMessage("You have been logged out successfully.", "success");
   }
 
   function redirectForRole(role) {
@@ -150,4 +160,12 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+// In setUser and localStorage, always ensure user.id is present
+function normalizeUser(u) {
+  if (!u) return u;
+  if (u.id) return u;
+  if (u._id) return { ...u, id: u._id };
+  return u;
 }

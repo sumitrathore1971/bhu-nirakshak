@@ -98,6 +98,49 @@ export default function NotificationPanel() {
     }, 30000);
   };
 
+  // Handle case assignment notifications
+  const handleAssignToEnforcement = (data) => {
+    console.log("🔔 Received assignToEnforcement event:", data);
+    console.log("🔔 Current user role:", user?.role);
+    console.log(
+      "🔔 Socket connection status:",
+      socketService.getConnectionStatus()
+    );
+    if (!data || !data.report) {
+      console.log("🔔 Invalid data received:", data);
+      return;
+    }
+    console.log("🔔 Creating notification for case assignment");
+    const newNotification = {
+      id: Date.now(),
+      type: "assignToEnforcement",
+      title: "Case Assigned by Admin",
+      message: `Case "${
+        data.report.title || data.report.reportId || data.report.id
+      }" assigned to enforcement by Admin`,
+      report: data.report,
+      timestamp: data.timestamp,
+      isRead: false,
+      priority: "high",
+    };
+    console.log("🔔 Adding notification to state:", newNotification);
+    setNotifications((prev) => {
+      const updated = [newNotification, ...prev];
+      console.log(
+        "🔔 Updated notifications array:",
+        updated.length,
+        "notifications"
+      );
+      return updated;
+    });
+    setUnreadCount((prev) => {
+      const updated = prev + 1;
+      console.log("🔔 Updated unread count:", updated);
+      return updated;
+    });
+    playNotificationSound();
+  };
+
   // Mark notification as read
   const markAsRead = (notificationId) => {
     setNotifications((prev) =>
@@ -214,10 +257,47 @@ export default function NotificationPanel() {
     console.log("🔔 Setting up new report listener");
     socketService.onNewReport(handleNewReport);
 
+    // Listen for case assignments
+    if (user.role === "Enforcement") {
+      console.log("🔔 Setting up assignToEnforcement listener for Enforcement");
+      console.log("🔔 Socket object:", socketService.socket);
+      console.log("🔔 Socket connected:", socketService.socket?.connected);
+      if (socketService.socket && socketService.socket.connected) {
+        socketService.socket.on(
+          "assignToEnforcement",
+          handleAssignToEnforcement
+        );
+        console.log("🔔 assignToEnforcement listener set up successfully");
+      } else {
+        console.log("🔔 Socket not connected, will retry when connected");
+        // Retry when socket connects
+        const checkConnection = () => {
+          if (socketService.socket && socketService.socket.connected) {
+            console.log(
+              "🔔 Socket now connected, setting up assignToEnforcement listener"
+            );
+            socketService.socket.on(
+              "assignToEnforcement",
+              handleAssignToEnforcement
+            );
+          } else {
+            setTimeout(checkConnection, 1000);
+          }
+        };
+        checkConnection();
+      }
+    }
+
     // Cleanup on unmount
     return () => {
       console.log("🔔 Cleaning up socket connection");
       socketService.offNewReport(handleNewReport);
+      if (user.role === "Enforcement" && socketService.socket) {
+        socketService.socket.off(
+          "assignToEnforcement",
+          handleAssignToEnforcement
+        );
+      }
       // Don't call cleanup() here as it affects other components
       // socketService.cleanup();
     };
