@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, AlertCircle, X, LogIn } from "lucide-react";
 import reportService from "../../services/reportService.js";
@@ -17,6 +17,9 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [flashMessage, setFlashMessage] = useState(null);
   const [errors, setErrors] = useState({});
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState("");
+  const geocodeAbortRef = useRef(null);
 
   const hasCoords =
     Number.isFinite(location?.lat) && Number.isFinite(location?.lng);
@@ -71,6 +74,54 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
     setFlashMessage({ message, type });
     setTimeout(() => setFlashMessage(null), 5000);
   }
+
+  // Debounced geocoding on address change
+  useEffect(() => {
+    const address = location?.address?.trim();
+    if (!address || address.length < 4) {
+      return;
+    }
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+    if (!token) {
+      return; // silently skip if no token configured
+    }
+
+    const handle = setTimeout(async () => {
+      try {
+        setIsGeocoding(true);
+        setGeocodeError("");
+        if (geocodeAbortRef.current) {
+          geocodeAbortRef.current.abort();
+        }
+        const controller = new AbortController();
+        geocodeAbortRef.current = controller;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          address
+        )}.json?access_token=${token}&limit=1&country=IN`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error("Geocoding failed");
+        const data = await res.json();
+        const feature = data?.features?.[0];
+        const center = feature?.center; // [lng, lat]
+        if (Array.isArray(center) && center.length === 2) {
+          const [lng, lat] = center;
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setLocation({ ...(location || {}), address, lat, lng });
+          }
+        } else {
+          setGeocodeError("Could not locate that address");
+        }
+      } catch (e) {
+        if (e?.name !== "AbortError") {
+          setGeocodeError("Failed to geocode address");
+        }
+      } finally {
+        setIsGeocoding(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(handle);
+  }, [location?.address]);
 
   function clearErrors() {
     setErrors({});
@@ -130,8 +181,8 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
         return;
       }
 
-      // Submit report
-      const response = await reportService.submitReport(reportData);
+      // Submit report with files
+      const response = await reportService.submitReport(reportData, files);
 
       // Show success message
       showFlashMessage(
@@ -395,21 +446,42 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
                     : "border-gray-300 dark:border-neutral-700"
                 }`}
               />
+              {(isGeocoding || geocodeError) && (
+                <p className={`mt-1 text-xs ${geocodeError ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  {isGeocoding ? 'Locating address…' : geocodeError}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Area / Locality
+                Coordinates (Lat, Lng) *
               </label>
-              <input
-                value={location?.area ?? ""}
-                onChange={(e) => handleAreaChange(e.target.value)}
-                placeholder="e.g., Rajwada, Palasia"
-                className={`mt-1 w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-primary outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                  errors.location
-                    ? "border-red-300 dark:border-red-600 focus:ring-red-500"
-                    : "border-gray-300 dark:border-neutral-700"
-                }`}
-              />
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <input
+                  value={location?.lat ?? ""}
+                  onChange={(e) => handleLatChange(e.target.value)}
+                  type="number"
+                  step="any"
+                  placeholder="Latitude"
+                  className={`w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-primary outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
+                    errors.location
+                      ? "border-red-300 dark:border-red-600 focus:ring-red-500"
+                      : "border-gray-300 dark:border-neutral-700"
+                  }`}
+                />
+                <input
+                  value={location?.lng ?? ""}
+                  onChange={(e) => handleLngChange(e.target.value)}
+                  type="number"
+                  step="any"
+                  placeholder="Longitude"
+                  className={`w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-primary outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
+                    errors.location
+                      ? "border-red-300 dark:border-red-600 focus:ring-red-500"
+                      : "border-gray-300 dark:border-neutral-700"
+                  }`}
+                />
+              </div>
             </div>
           </div>
 
@@ -463,33 +535,17 @@ export default function ReportForm({ onSubmit, location, setLocation }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Latitude *
+                Area covered (in feet)
               </label>
               <input
-                value={location?.lat ?? ""}
-                onChange={(e) => handleLatChange(e.target.value)}
                 type="number"
+                min="0"
                 step="any"
-                placeholder="Lat"
-                className={`mt-1 w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-primary outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                  errors.location
-                    ? "border-red-300 dark:border-red-600 focus:ring-red-500"
-                    : "border-gray-300 dark:border-neutral-700"
-                }`}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Longitude *
-              </label>
-              <input
-                value={location?.lng ?? ""}
-                onChange={(e) => handleLngChange(e.target.value)}
-                type="number"
-                step="any"
-                placeholder="Lng"
+                value={location?.area ?? ""}
+                onChange={(e) => handleAreaChange(e.target.value)}
+                placeholder="Area covered in feet"
                 className={`mt-1 w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-primary outline-none bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
                   errors.location
                     ? "border-red-300 dark:border-red-600 focus:ring-red-500"

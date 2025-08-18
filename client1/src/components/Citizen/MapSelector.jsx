@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
@@ -8,9 +7,6 @@ import { addBoundaryToMap } from "../../lib/boundary";
 
 export default function MapSelector({ value, onChange }) {
   const [baseLayer, setBaseLayer] = useState("osm");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -24,32 +20,7 @@ export default function MapSelector({ value, onChange }) {
     [value]
   );
 
-  async function handleSearch(ev) {
-    ev.preventDefault();
-    if (!query.trim()) return;
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          query
-        )}&addressdetails=1&limit=5`
-      );
-      const data = await res.json();
-      setResults(data || []);
-    } catch (e) {
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleSelectResult(r) {
-    const lat = parseFloat(r.lat);
-    const lng = parseFloat(r.lon);
-    const areaGuess = r.address?.suburb || r.address?.neighbourhood || r.address?.city_district || r.address?.city || r.address?.town || r.address?.village || '';
-    onChange({ ...(value || {}), lat, lng, address: r.display_name, area: areaGuess });
-    setResults([]);
-  }
+  // Search bar removed per requirement
 
   // Initialize map
   useEffect(() => {
@@ -155,58 +126,23 @@ export default function MapSelector({ value, onChange }) {
 
   return (
     <div className="relative w-full h-full">
-      <div className="absolute top-3 left-3 right-3 z-[500] flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <form onSubmit={handleSearch} className="flex-1">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search location (e.g., Rajwada, Indore)"
-              className="w-full px-3 py-2 bg-white/95 border rounded-md shadow"
-            />
-          </form>
-          <div className="bg-white rounded-md border shadow inline-flex p-1">
-            <button
-              type="button"
-              onClick={() => setBaseLayer("osm")}
-              className={`px-3 py-1 rounded ${
-                baseLayer === "osm" ? "bg-gray-100" : ""
-              }`}
-            >
-              Map
-            </button>
-            <button
-              type="button"
-              onClick={() => setBaseLayer("satellite")}
-              className={`px-3 py-1 rounded ${
-                baseLayer === "satellite" ? "bg-gray-100" : ""
-              }`}
-            >
-              Satellite
-            </button>
-          </div>
+      <div className="absolute bottom-3 left-3 z-[500]">
+        <div className="bg-white rounded-md border shadow inline-flex p-1">
+          <button
+            type="button"
+            onClick={() => setBaseLayer("osm")}
+            className={`px-3 py-1 rounded ${baseLayer === "osm" ? "bg-gray-100" : ""}`}
+          >
+            Map
+          </button>
+          <button
+            type="button"
+            onClick={() => setBaseLayer("satellite")}
+            className={`px-3 py-1 rounded ${baseLayer === "satellite" ? "bg-gray-100" : ""}`}
+          >
+            Satellite
+          </button>
         </div>
-        <AnimatePresence>
-          {results.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="bg-white border rounded-md shadow max-h-56 overflow-auto"
-            >
-              {results.map((r) => (
-                <button
-                  key={`${r.place_id}`}
-                  type="button"
-                  onClick={() => handleSelectResult(r)}
-                  className="block w-full text-left px-3 py-2 hover:bg-gray-50"
-                >
-                  {r.display_name}
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
       {!token ? (
         <div className="w-full h-[420px] md:h-full rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">

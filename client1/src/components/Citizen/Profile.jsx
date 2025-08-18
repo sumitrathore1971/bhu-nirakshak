@@ -3,6 +3,7 @@ import { User, Mail, Phone, MapPin, Calendar, Shield, Edit, X, Save, Lock, Eye, 
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import reportService from '../../services/reportService.js';
 
 export default function Profile() {
   const { user, showFlashMessage, setUser } = useAuth();
@@ -57,13 +58,42 @@ export default function Profile() {
       // Update profile information display
       updateProfileInfo(user);
 
-      // Set stats (these would ideally come from API calls)
-      setStats([
-        { label: 'Reports Submitted', value: '0' }, // TODO: Fetch from API
-        { label: 'Active Cases', value: '0' }, // TODO: Fetch from API
-        { label: 'Resolved Cases', value: '0' }, // TODO: Fetch from API
-        { label: 'Response Rate', value: '0%' }, // TODO: Fetch from API
-      ]);
+      // Fetch KPIs from reports API
+      (async () => {
+        try {
+          const [all, pending, verified, actionTaken, closed] = await Promise.all([
+            reportService.getMyReports(1, 1),
+            reportService.getMyReports(1, 1, 'Pending'),
+            reportService.getMyReports(1, 1, 'Verified'),
+            reportService.getMyReports(1, 1, 'Action Taken'),
+            reportService.getMyReports(1, 1, 'Closed'),
+          ]);
+
+          const totalReports = all?.totalReports ?? (Array.isArray(all?.reports) ? all.reports.length : 0);
+          const pendingCount = pending?.totalReports ?? 0;
+          const verifiedCount = verified?.totalReports ?? 0;
+          const actionTakenCount = actionTaken?.totalReports ?? 0;
+          const closedCount = closed?.totalReports ?? 0;
+
+          const activeCases = pendingCount + verifiedCount + actionTakenCount;
+          const responseRate = totalReports > 0 ? Math.round(((totalReports - pendingCount) / totalReports) * 100) : 0;
+
+          setStats([
+            { label: 'Reports Submitted', value: String(totalReports) },
+            { label: 'Active Cases', value: String(activeCases) },
+            { label: 'Resolved Cases', value: String(closedCount) },
+            { label: 'Response Rate', value: `${responseRate}%` },
+          ]);
+        } catch (e) {
+          // Fallback to zeros if API fails
+          setStats([
+            { label: 'Reports Submitted', value: '0' },
+            { label: 'Active Cases', value: '0' },
+            { label: 'Resolved Cases', value: '0' },
+            { label: 'Response Rate', value: '0%' },
+          ]);
+        }
+      })();
     }
   }, [user]);
 

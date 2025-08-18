@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image URL Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-image { max-width: 300px; margin: 10px 0; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Image URL Test</h1>
+    
+    <h2>Test 1: Direct Image URLs</h2>
+    <div id="test1">
+        <h3>Image 1: media-1755420669900-406114114.jpg</h3>
+        <img src="http://localhost:8080/uploads/media-1755420669900-406114114.jpg" 
+             alt="Test Image 1" 
+             class="test-image"
+             onload="console.log('✅ Image 1 loaded successfully')"
+             onerror="console.log('❌ Image 1 failed to load')">
+        
+        <h3>Image 2: media-1755421027839-471029192.jpg</h3>
+        <img src="http://localhost:8080/uploads/media-1755421027839-471029192.jpg" 
+             alt="Test Image 2" 
+             class="test-image"
+             onload="console.log('✅ Image 2 loaded successfully')"
+             onerror="console.log('❌ Image 2 failed to load')">
+    </div>
+
+    <h2>Test 2: URL Construction (Frontend Logic)</h2>
+    <div id="test2">
+        <h3>Testing URL construction logic:</h3>
+        <div id="url-results"></div>
+    </div>
+
+    <script>
+        // Simulate the frontend URL construction logic
+        function getMediaUrl(mediaItem) {
+            console.log('getMediaUrl - mediaItem:', mediaItem);
+            
+            if (mediaItem.url) {
+                // If it's already a full URL, use it as is
+                if (mediaItem.url.startsWith('http://') || mediaItem.url.startsWith('https://')) {
+                    console.log('getMediaUrl - Full URL detected:', mediaItem.url);
+                    return mediaItem.url;
+                }
+                // If it's a relative path, construct the full URL
+                if (mediaItem.url.startsWith('/uploads/')) {
+                    const fullUrl = `${'http://localhost:8080'}${mediaItem.url}`;
+                    console.log('getMediaUrl - Constructed URL from relative path:', fullUrl);
+                    return fullUrl;
+                }
+                // If it's just a filename, construct the uploads URL
+                const fullUrl = `${'http://localhost:8080'}/uploads/${mediaItem.filename}`;
+                console.log('getMediaUrl - Constructed URL from filename:', fullUrl);
+                return fullUrl;
+            }
+            console.log('getMediaUrl - No URL found, returning null');
+            return null;
+        }
+
+        // Test data from the database
+        const testMedia = [
+            {
+                filename: 'media-1755420669900-406114114.jpg',
+                originalName: '15_gettyimages_735934837_super_resized.jpg',
+                url: '/uploads/media-1755420669900-406114114.jpg',
+                mimeType: 'image/jpeg',
+                size: 915456
+            },
+            {
+                filename: 'media-1755421027839-471029192.jpg',
+                originalName: 'IMG_5008.jpg',
+                url: '/uploads/media-1755421027839-471029192.jpg',
+                mimeType: 'image/jpeg',
+                size: 4292608
+            }
+        ];
+
+        // Test URL construction
+        const resultsDiv = document.getElementById('url-results');
+        testMedia.forEach((media, index) => {
+            const mediaUrl = getMediaUrl(media);
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <p><strong>Media ${index + 1}:</strong></p>
+                <p>Original URL: ${media.url}</p>
+                <p>Constructed URL: <span class="${mediaUrl ? 'success' : 'error'}">${mediaUrl || 'null'}</span></p>
+                <img src="${mediaUrl}" alt="${media.originalName}" class="test-image" 
+                     onload="console.log('✅ Constructed image ${index + 1} loaded')"
+                     onerror="console.log('❌ Constructed image ${index + 1} failed')">
+                <hr>
+            `;
+            resultsDiv.appendChild(div);
+        });
+
+        console.log('=== Image URL Test Complete ===');
+        console.log('Check the images above and console logs for results');
+    </script>
+</body>
+</html>

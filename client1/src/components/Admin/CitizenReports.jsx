@@ -13,11 +13,13 @@ import {
   AlertTriangle,
   Clock,
   X,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import reportService from "../../services/reportService.js";
 import socketService from "../../services/socketService.js";
 import { notificationEvents } from "./NotificationPanel.jsx"; // Import the global event system
+import { getStaticBaseUrl } from "../../lib/utils.js";
 
 export default function CitizenReports() {
   const { user } = useAuth();
@@ -34,6 +36,33 @@ export default function CitizenReports() {
     total: 0,
     totalPages: 0,
   });
+  const [updatingReportId, setUpdatingReportId] = useState(null);
+
+  // Function to check if a file is an image
+  const isImage = (mimeType) => {
+    return mimeType && mimeType.startsWith('image/');
+  };
+
+  // Function to get the full URL for media files
+  const getMediaUrl = (mediaItem) => {
+    if (mediaItem.url) {
+      // If it's already a full URL, use it as is
+      if (mediaItem.url.startsWith('http://') || mediaItem.url.startsWith('https://')) {
+        return mediaItem.url;
+      }
+      // If it's a relative path, construct the full URL
+      if (mediaItem.url.startsWith('/uploads/')) {
+        const baseUrl = getStaticBaseUrl();
+        const fullUrl = `${baseUrl}${mediaItem.url}`;
+        return fullUrl;
+      }
+      // If it's just a filename, construct the uploads URL
+      const baseUrl = getStaticBaseUrl();
+      const fullUrl = `${baseUrl}/uploads/${mediaItem.filename}`;
+      return fullUrl;
+    }
+    return null;
+  };
 
   // Fetch reports from API
   const fetchReports = async (page = 1) => {
@@ -51,10 +80,28 @@ export default function CitizenReports() {
         filters
       );
 
+      // Debug logging
+      console.log('Admin Portal - API Response:', response);
+      console.log('Admin Portal - Reports data:', response.data?.reports);
+
       // Handle both new and old response formats
       if (response.success || response.data) {
         const data = response.data || response;
-        setReports(data.reports || []);
+        const reportsData = data.reports || [];
+        
+        // Debug logging for reports with media
+        const reportsWithMedia = reportsData.filter(report => report.media && report.media.length > 0);
+        console.log('Admin Portal - Reports with media:', reportsWithMedia.length);
+        reportsWithMedia.forEach((report, index) => {
+          console.log(`Admin Portal - Report ${index + 1}:`, {
+            reportId: report.reportId,
+            title: report.title,
+            mediaCount: report.media.length,
+            media: report.media
+          });
+        });
+        
+        setReports(reportsData);
         setPagination({
           page: data.currentPage || 1,
           limit: data.limit || 10,
@@ -120,6 +167,8 @@ export default function CitizenReports() {
         return "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400";
       case "Closed":
         return "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400";
+      case "Rejected":
+        return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
       default:
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400";
     }
@@ -131,6 +180,42 @@ export default function CitizenReports() {
       month: "short",
       day: "numeric",
     });
+  };
+
+  const handleReject = async (report) => {
+    if (!report?._id) return;
+    try {
+      setUpdatingReportId(report._id);
+      await reportService.updateReportStatus(report._id, "Rejected");
+      // Optimistically update the local list
+      setReports((prev) =>
+        prev.map((r) => (r._id === report._id ? { ...r, status: "Rejected" } : r))
+      );
+    } catch (err) {
+      console.error("Error rejecting report:", err);
+      setError(err.message || "Failed to reject report");
+    } finally {
+      setUpdatingReportId(null);
+    }
+  };
+
+  const handleVerify = async (report) => {
+    if (!report?._id) return;
+    try {
+      setUpdatingReportId(report._id);
+      await reportService.updateReportStatus(report._id, "Verified");
+      // Optimistically update the local list
+      setReports((prev) =>
+        prev.map((r) => (r._id === report._id ? { ...r, status: "Verified" } : r))
+      );
+      // Also reflect in selected modal if open
+      setSelected((prev) => (prev && prev._id === report._id ? { ...prev, status: "Verified" } : prev));
+    } catch (err) {
+      console.error("Error verifying report:", err);
+      setError(err.message || "Failed to verify report");
+    } finally {
+      setUpdatingReportId(null);
+    }
   };
 
   return (
@@ -299,7 +384,11 @@ export default function CitizenReports() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => setSelected(report)}
+                          onClick={() => {
+                            console.log('Admin Portal - View button clicked for report:', report);
+                            console.log('Admin Portal - Report media:', report.media);
+                            setSelected(report);
+                          }}
                           className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
                         >
                           View
@@ -494,23 +583,79 @@ export default function CitizenReports() {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Photos &amp; Videos
                   </h3>
+                  
+
+                  
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {(selected.photos || []).length > 0 ? (
-                      selected.photos.map((photo, index) => (
-                        <div
-                          key={index}
-                          className="aspect-square bg-gray-200 dark:bg-neutral-800 rounded-lg flex items-center justify-center"
-                        >
-                          {/* Replace with actual image/video rendering if available */}
-                          <span className="text-gray-500 dark:text-gray-400">
-                            Photo {index + 1}
-                          </span>
-                        </div>
-                      ))
+                    {(selected.media || []).length > 0 ? (
+                      selected.media.map((media, index) => {
+                        const mediaUrl = getMediaUrl(media);
+                        const isImageFile = isImage(media.mimeType);
+                        
+                        console.log(`Admin Portal - Rendering media ${index}:`, {
+                          media,
+                          mediaUrl,
+                          isImageFile,
+                          mimeType: media.mimeType
+                        });
+                        
+                        return (
+                          <div key={index} className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+                            {isImageFile && mediaUrl ? (
+                              <div className="space-y-2">
+                                <img
+                                  src={mediaUrl}
+                                  alt={media.originalName}
+                                  className="w-full h-48 object-cover"
+                                  onError={(e) => {
+                                    console.error(`Image failed to load: ${mediaUrl}`, e);
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="hidden flex items-center justify-center h-48 bg-gray-100 dark:bg-neutral-800">
+                                  <div className="text-center">
+                                    <ImageIcon size={32} className="mx-auto text-gray-400 mb-2" />
+                                    <p className="text-sm text-gray-500">Image not available</p>
+                                  </div>
+                                </div>
+                                <div className="p-2">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {media.originalName} • {(media.size / 1024 / 1024).toFixed(2)} MB
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-neutral-800 h-48">
+                                <FileText size={24} className="text-gray-400" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {media.originalName}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {(media.size / 1024 / 1024).toFixed(2)} MB • {media.mimeType}
+                                  </p>
+                                </div>
+                                {mediaUrl && (
+                                  <a
+                                    href={mediaUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary/90 transition-colors"
+                                  >
+                                    Download
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400">
-                        No photos available.
-                      </span>
+                      <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400">
+                        <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
+                        <p>No media files attached to this report</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -554,7 +699,21 @@ export default function CitizenReports() {
             <div className="p-6 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-800">
               <div className="flex items-center justify-end gap-3 pt-4">
                 <button
-                  className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                  onClick={async () => {
+                    if (!selected?._id) return;
+                    await handleReject(selected);
+                    // Also reflect in selected modal
+                    setSelected((prev) => prev ? { ...prev, status: "Rejected" } : prev);
+                  }}
+                  disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={selected?.status === 'Rejected' ? 'Already rejected' : 'Reject case'}
+                >
+                  Reject Case
+                </button>
+                <button
+                  disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
+                  className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
                     if (selected) {
                       console.log(
@@ -581,7 +740,14 @@ export default function CitizenReports() {
                 >
                   Assign to Enforcement
                 </button>
-                <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                <button
+                  disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={async () => {
+                    if (!selected?._id) return;
+                    await handleVerify(selected);
+                  }}
+                >
                   Verify Case
                 </button>
               </div>

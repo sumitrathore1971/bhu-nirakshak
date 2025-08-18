@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Eye, X, Loader2, AlertCircle } from "lucide-react";
+import { MapPin, Eye, X, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import reportService from "../../services/reportService.js";
+import ReportDetailsModal from "./ReportDetailsModal.jsx";
+import FlashMessage from "../FlashMessage.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
+import socketService from "../../services/socketService.js";
 
 const stages = ["Reported", "Verified", "Action Taken", "Closed"];
 
 export default function MyReports() {
+  const { user } = useAuth();
   const [selected, setSelected] = useState(null);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,10 +18,38 @@ export default function MyReports() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     fetchReports();
   }, [currentPage, statusFilter]);
+
+  // Subscribe to real-time status updates for this user
+  useEffect(() => {
+    if (!user?.id) return;
+    socketService.connect();
+    socketService.joinUserRoom(user.id);
+
+    const handleStatusUpdate = (payload) => {
+      const { reportId, status, data } = payload || {};
+      setReports((prev) =>
+        prev.map((r) =>
+          r._id === reportId || r.reportId === data?.report?.reportId
+            ? { ...r, status: status || data?.report?.status }
+            : r
+        )
+      );
+    };
+
+    socketService.onReportStatusUpdated(handleStatusUpdate);
+
+    return () => {
+      socketService.offReportStatusUpdated(handleStatusUpdate);
+      socketService.disconnect();
+    };
+  }, [user?.id]);
 
   async function fetchReports() {
     try {
@@ -28,9 +61,29 @@ export default function MyReports() {
         10,
         statusFilter
       );
+      
+      // Debug logging
+      console.log('=== MyReports Debug ===');
+      console.log('API Response:', response);
+      
       // Handle both new and old response formats
       const reports = response.reports || response.data?.reports || [];
       const totalPages = response.totalPages || response.data?.totalPages || 1;
+
+      console.log('Processed reports:', reports);
+      console.log('Reports with media:', reports.filter(r => r.media && r.media.length > 0).length);
+      
+      // Log each report with media
+      reports.forEach((report, index) => {
+        if (report.media && report.media.length > 0) {
+          console.log(`Report ${index + 1} with media:`, {
+            reportId: report.reportId,
+            title: report.title,
+            mediaCount: report.media.length,
+            media: report.media
+          });
+        }
+      });
 
       setReports(reports);
       setTotalPages(totalPages);
@@ -67,6 +120,32 @@ export default function MyReports() {
     }
   }
 
+  // Handle report deletion
+  const handleDeleteReport = async (reportId) => {
+    try {
+      setDeleting(true);
+      await reportService.deleteReport(reportId);
+      
+      // Remove the deleted report from the list
+      setReports(reports.filter(report => report._id !== reportId));
+      setDeleteConfirm(null);
+      
+      // Show success notification
+      setNotification({
+        message: "Report deleted successfully",
+        type: "success"
+      });
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      setNotification({
+        message: error.message || "Failed to delete report",
+        type: "error"
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading && reports.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -99,7 +178,16 @@ export default function MyReports() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Flash Message */}
+      <FlashMessage
+        message={notification?.message}
+        type={notification?.type}
+        onClose={() => setNotification(null)}
+      />
+
+      
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <select
@@ -132,13 +220,13 @@ export default function MyReports() {
           <thead className="bg-gray-50 dark:bg-neutral-800">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Case ID
+                Report ID
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Title
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Date Submitted
+                Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Location
@@ -146,7 +234,9 @@ export default function MyReports() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3" />
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-neutral-800">
@@ -165,7 +255,9 @@ export default function MyReports() {
               reports.map((report) => (
                 <tr
                   key={report._id}
-                  className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                  className={`hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors ${
+                    report.status !== 'Pending' ? 'opacity-75' : ''
+                  }`}
                 >
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                     {report.reportId}
@@ -192,12 +284,22 @@ export default function MyReports() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => setSelected(report)}
-                      className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm inline-flex items-center gap-1"
-                    >
-                      <Eye size={16} /> View Details
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setSelected(report)}
+                        className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm inline-flex items-center gap-1"
+                      >
+                        <Eye size={16} /> View
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(report)}
+                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={deleting}
+                        title={'Delete report'}
+                      >
+                        <Trash2 size={16} /> Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -234,175 +336,86 @@ export default function MyReports() {
       )}
 
       {/* Report Details Modal */}
+      <ReportDetailsModal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        report={selected}
+      />
+
+      {/* Delete Confirmation Modal */}
       <AnimatePresence>
-        {selected && (
+        {deleteConfirm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-            onClick={() => setSelected(null)}
+            onClick={() => setDeleteConfirm(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden"
+              className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-md w-full p-6"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <Trash2 size={24} className="text-red-600 dark:text-red-400" />
+                </div>
                 <div>
-                  <h3 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">
-                    {selected.reportId}
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Delete Report
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {selected.title}
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This action cannot be undone
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelected(null)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-                >
-                  <X size={20} className="text-gray-500 dark:text-gray-400" />
-                </button>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Category
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {selected.category}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Status
-                    </p>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        selected.status
-                      )}`}
-                    >
-                      {selected.status}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Date Observed
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatDate(selected.dateOfObservation)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Submitted
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatDate(selected.createdAt)}
-                    </p>
-                  </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-2">
+                  Are you sure you want to delete this report?
+                </p>
+                <div className="bg-gray-50 dark:bg-neutral-800 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {deleteConfirm.title}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    ID: {deleteConfirm.reportId}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Status: {deleteConfirm.status}
+                  </p>
+                  
                 </div>
+              </div>
 
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Description
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-neutral-800 p-3 rounded-lg">
-                    {selected.description}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Location
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                    <MapPin size={16} className="text-gray-400" />
-                    {selected.location.area ||
-                      selected.formattedAddress ||
-                      "Location coordinates"}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Status Timeline
-                  </p>
-                  <div className="flex items-center">
-                    {stages.map((stage, idx) => (
-                      <div key={stage} className="flex items-center">
-                        <div
-                          className={`w-8 h-8 rounded-full grid place-items-center text-xs font-semibold ${
-                            idx <= selected.stage
-                              ? "bg-primary text-white"
-                              : "bg-gray-200 text-gray-500"
-                          }`}
-                        >
-                          {idx + 1}
-                        </div>
-                        {idx < stages.length - 1 && (
-                          <div
-                            className={`w-10 h-1 ${
-                              idx < selected.stage
-                                ? "bg-primary"
-                                : "bg-gray-200"
-                            }`}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                    Current Stage: {stages[selected.stage] || selected.status}
-                  </div>
-                </div>
-
-                {selected.media && selected.media.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Images/Videos
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {selected.media.map((media, i) => (
-                        <div
-                          key={i}
-                          className="aspect-square bg-gray-200 dark:bg-neutral-800 rounded-lg flex items-center justify-center"
-                        >
-                          <span className="text-xs text-gray-500">
-                            {media.originalName}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selected.notes && selected.notes.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Notes
-                    </p>
-                    <div className="space-y-2">
-                      {selected.notes.map((note, i) => (
-                        <div
-                          key={i}
-                          className="bg-gray-50 dark:bg-neutral-800 p-3 rounded-lg"
-                        >
-                          <p className="text-sm text-gray-900 dark:text-white">
-                            {note.content}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {note.addedBy?.name || "System"} •{" "}
-                            {formatDate(note.addedAt)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteReport(deleteConfirm._id)}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Delete
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </motion.div>

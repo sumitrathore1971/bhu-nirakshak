@@ -3,8 +3,42 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 import { allowRoles } from "../middleware/roleMiddleware.js";
 import Report from "../models/Report.js";
 import User from "../models/User.js";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../../uploads/'));
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files
+  },
+  fileFilter: function (req, file, cb) {
+    // Allow images and videos
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image and video files are allowed'), false);
+    }
+  }
+});
 
 // Get all reports (Admin/Enforcement only)
 router.get(
@@ -140,8 +174,16 @@ router.get("/:id", authMiddleware, async (req, res) => {
 });
 
 // Create new report (Citizen only)
-router.post("/", authMiddleware, allowRoles(["Citizen"]), async (req, res) => {
+router.post("/", authMiddleware, allowRoles(["Citizen"]), upload.array('media', 5), async (req, res) => {
   try {
+    // Parse report data from FormData
+    let parsedData;
+    try {
+      parsedData = JSON.parse(req.body.reportData);
+    } catch (error) {
+      return res.status(400).json({ message: "Invalid report data format." });
+    }
+
     const {
       fullName,
       phone,
@@ -151,7 +193,7 @@ router.post("/", authMiddleware, allowRoles(["Citizen"]), async (req, res) => {
       date,
       location,
       title,
-    } = req.body;
+    } = parsedData;
 
     // Validation
     if (
@@ -175,7 +217,7 @@ router.post("/", authMiddleware, allowRoles(["Citizen"]), async (req, res) => {
     }
 
     // Create report data
-    const reportData = {
+    const finalReportData = {
       reporter: {
         userId: req.user.id,
         fullName: fullName.trim(),
@@ -194,7 +236,14 @@ router.post("/", authMiddleware, allowRoles(["Citizen"]), async (req, res) => {
         address: location.address || "",
         area: location.area || "",
       },
-      media: [], // Will be handled separately for file uploads
+      media: req.files ? req.files.map(file => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        url: `/uploads/${file.filename}`,
+        uploadedAt: new Date()
+      })) : [],
     };
 
     // Save with retry on duplicate key for reportId only (extremely rare with UUID)
@@ -203,7 +252,7 @@ router.post("/", authMiddleware, allowRoles(["Citizen"]), async (req, res) => {
     const maxAttempts = 5;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        report = new Report(reportData);
+        report = new Report(finalReportData);
         await report.save();
         lastDupIdError = null;
         break;
@@ -326,6 +375,32 @@ router.put(
       await report.save();
       await report.populate("reporter.userId", "name email");
       await report.populate("assignedTo", "name email");
+
+      // Emit status update to relevant rooms
+      try {
+        const userRoom = `user-${report.reporter.userId}`;
+        req.io.to(userRoom).emit("reportStatusUpdated", {
+          reportId: report._id,
+          status: report.status,
+          data: { report },
+          timestamp: new Date().toISOString(),
+        });
+        // Also notify admin and enforcement rooms for dashboards, if needed
+        req.io.to("admin-room").emit("reportStatusUpdated", {
+          reportId: report._id,
+          status: report.status,
+          data: { report },
+          timestamp: new Date().toISOString(),
+        });
+        req.io.to("enforcement-room").emit("reportStatusUpdated", {
+          reportId: report._id,
+          status: report.status,
+          data: { report },
+          timestamp: new Date().toISOString(),
+        });
+      } catch (emitErr) {
+        console.warn("⚠️ Failed to emit reportStatusUpdated:", emitErr?.message || emitErr);
+      }
 
       res.json({
         success: true,
@@ -494,6 +569,114 @@ router.get(
       });
     } catch (error) {
       console.error("Error fetching report statistics:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Media upload route
+router.post(
+  "/:id/media",
+  authMiddleware,
+  allowRoles(["Citizen", "Admin", "Enforcement"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { mediaFiles } = req.body;
+
+      if (!mediaFiles || !Array.isArray(mediaFiles)) {
+        return res.status(400).json({
+          success: false,
+          message: "Media files are required",
+        });
+      }
+
+      const report = await Report.findById(id);
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: "Report not found",
+        });
+      }
+
+      // Check if user has permission to modify this report
+      if (req.user.role === "Citizen" && report.reporter.userId.toString() !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only add media to your own reports",
+        });
+      }
+
+      // Add new media files to the report
+      const newMedia = mediaFiles.map(file => ({
+        filename: file.filename,
+        originalName: file.originalName,
+        mimeType: file.mimeType,
+        size: file.size,
+        url: file.url,
+        uploadedAt: new Date()
+      }));
+
+      report.media.push(...newMedia);
+      await report.save();
+
+      res.json({
+        success: true,
+        message: "Media files added successfully",
+        data: { media: report.media },
+      });
+    } catch (error) {
+      console.error("Error adding media to report:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Delete report route
+router.delete(
+  "/:id",
+  authMiddleware,
+  allowRoles(["Citizen", "Admin", "Enforcement"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const report = await Report.findById(id);
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: "Report not found",
+        });
+      }
+
+      // Check if user has permission to delete this report
+      if (req.user.role === "Citizen" && report.reporter.userId.toString() !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only delete your own reports",
+        });
+      }
+
+      // Soft delete by setting isActive to false
+      report.isActive = false;
+      report.deletedAt = new Date();
+      report.deletedBy = req.user.id;
+      await report.save();
+
+      res.json({
+        success: true,
+        message: "Report deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting report:", error);
       res.status(500).json({
         success: false,
         message: "Server error",

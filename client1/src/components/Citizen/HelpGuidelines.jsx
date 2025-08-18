@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, FileText, Phone, Mail, MessageCircle } from 'lucide-react';
 
 export default function HelpGuidelines() {
+  const [showProcedure, setShowProcedure] = useState(false);
+  const [showStatusInfo, setShowStatusInfo] = useState(false);
+  const [showTrackingInfo, setShowTrackingInfo] = useState(false);
+
   const helpTopics = [
     {
       title: 'How to Report Encroachment',
@@ -25,8 +30,7 @@ export default function HelpGuidelines() {
 
   const contactMethods = [
     { method: 'Phone Support', value: '+91 123-456-7890', icon: Phone, color: 'bg-green-500' },
-    { method: 'Email Support', value: 'support@bhunirakshak.gov.in', icon: Mail, color: 'bg-blue-500' },
-    { method: 'Live Chat', value: 'Available 9 AM - 6 PM', icon: MessageCircle, color: 'bg-purple-500' }
+    { method: 'Email Support', value: 'support@bhunirakshak.gov.in', icon: Mail, color: 'bg-blue-500' }
   ];
 
   return (
@@ -45,6 +49,18 @@ export default function HelpGuidelines() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
+            onClick={() => {
+              if (topic.title === 'How to Report Encroachment') setShowProcedure(true);
+              if (topic.title === 'Understanding Case Status') setShowStatusInfo(true);
+              if (topic.title === 'Tracking Your Report') setShowTrackingInfo(true);
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && topic.title === 'How to Report Encroachment') setShowProcedure(true);
+              if (e.key === 'Enter' && topic.title === 'Understanding Case Status') setShowStatusInfo(true);
+              if (e.key === 'Enter' && topic.title === 'Tracking Your Report') setShowTrackingInfo(true);
+            }}
             className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 p-6 hover:shadow-lg transition-shadow cursor-pointer"
           >
             <div className={`${topic.color} p-3 rounded-lg w-fit mb-4`}>
@@ -83,6 +99,78 @@ export default function HelpGuidelines() {
           </div>
         </div>
       </div>
+
+      {showProcedure && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowProcedure(false)} />
+          <div className="relative z-10 w-full max-w-lg mx-auto bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-neutral-800 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">How to Report Encroachment</h3>
+              <button
+                onClick={() => setShowProcedure(false)}
+                className="px-3 py-1 rounded-lg text-sm bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+              >
+                Close
+              </button>
+            </div>
+            <ol className="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300">
+              <li>Login to the Citizen Portal.</li>
+              <li>Navigate to the <span className="font-medium">Report Encroachment</span> section.</li>
+              <li>Fill required details: Name, Contact, Date of Observation, Category, Title, Description.</li>
+              <li>Mark the exact location on the map and provide address/area details.</li>
+              <li>Upload supporting photos or videos (optional but recommended).</li>
+              <li>Submit the report and save your Case ID for tracking.</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {showStatusInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowStatusInfo(false)} />
+          <div className="relative z-10 w-full max-w-lg mx-auto bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-neutral-800 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Understanding Case Status</h3>
+              <button
+                onClick={() => setShowStatusInfo(false)}
+                className="px-3 py-1 rounded-lg text-sm bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+              >
+                Close
+              </button>
+            </div>
+            <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300">
+              <li><span className="font-medium">Pending</span>: Your report is submitted and awaiting verification.</li>
+              <li><span className="font-medium">Verified</span>: Authorities verified the report’s authenticity.</li>
+              <li><span className="font-medium">Action Taken</span>: Enforcement actions have been initiated.</li>
+              <li><span className="font-medium">Closed</span>: The case is resolved and closed.</li>
+              <li><span className="font-medium">Rejected</span>: The report was not accepted due to insufficient/invalid information.</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {showTrackingInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowTrackingInfo(false)} />
+          <div className="relative z-10 w-full max-w-lg mx-auto bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-neutral-800 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Tracking Your Report</h3>
+              <button
+                onClick={() => setShowTrackingInfo(false)}
+                className="px-3 py-1 rounded-lg text-sm bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+              >
+                Close
+              </button>
+            </div>
+            <ol className="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300">
+              <li>Open the <span className="font-medium">Track Case</span> section in the Citizen Portal.</li>
+              <li>Use your <span className="font-medium">Case ID</span> to quickly filter your cases.</li>
+              <li>Check the status pill for current stage (Pending, Verified, Action Taken, Closed, Rejected).</li>
+              <li>Open your case to view timestamps, notes, and assigned officer (if applicable).</li>
+            </ol>
+          </div>
+        </div>
+      )}
 
       {/* Contact Information */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 p-6">

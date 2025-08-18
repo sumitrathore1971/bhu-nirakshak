@@ -1,13 +1,7 @@
-// Normalize API base URL: prefer VITE_API_BASE (used by AuthContext),
-// fall back to VITE_API_URL, and ensure it ends with /api
-const API_BASE_URL = (() => {
-  const raw =
-    import.meta.env.VITE_API_BASE ||
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:8080/api";
-  const trimmed = String(raw).replace(/\/$/, "");
-  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
-})();
+import { getApiBaseUrl } from '../lib/utils.js';
+
+// Use the utility function to get the API base URL
+const API_BASE_URL = getApiBaseUrl();
 
 class ReportService {
   constructor() {
@@ -29,7 +23,7 @@ class ReportService {
   }
 
   // Submit a new report
-  async submitReport(reportData) {
+  async submitReport(reportData, files = []) {
     try {
       const token = this.getAuthToken();
       if (!token) {
@@ -39,10 +33,24 @@ class ReportService {
       }
 
       for (let attempt = 0; attempt < 2; attempt++) {
+        // Create FormData for file upload
+        const formData = new FormData();
+        
+        // Add report data as JSON string
+        formData.append('reportData', JSON.stringify(reportData));
+        
+        // Add files
+        files.forEach((file, index) => {
+          formData.append('media', file);
+        });
+
         const response = await fetch(`${this.baseURL}/reports`, {
           method: "POST",
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(reportData),
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            // Don't set Content-Type, let browser set it with boundary for FormData
+          },
+          body: formData,
         });
 
         const data = await response.json();
@@ -434,6 +442,43 @@ class ReportService {
   // Check if user is authenticated
   isAuthenticated() {
     return !!this.getAuthToken();
+  }
+
+  // Delete a report
+  async deleteReport(reportId) {
+    try {
+      const token = this.getAuthToken();
+      if (!token) {
+        throw new Error(
+          "Authentication required. Please log in to delete reports."
+        );
+      }
+
+      const response = await fetch(`${this.baseURL}/reports/${reportId}`, {
+        method: "DELETE",
+        headers: this.getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Authentication failed. Please log in again.");
+        } else if (response.status === 403) {
+          throw new Error(
+            "Access denied. You can only delete your own reports."
+          );
+        } else if (response.status === 404) {
+          throw new Error("Report not found.");
+        }
+        throw new Error(data.message || "Failed to delete report");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      throw error;
+    }
   }
 
   // Get current user info (if available)

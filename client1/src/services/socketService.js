@@ -34,8 +34,14 @@ class SocketService {
 
       // Re-join rooms that were previously joined
       this.roomsJoined.forEach((room) => {
-        console.log(`🔌 Re-joining room: ${room}`);
-        this.socket.emit(room);
+        if (room.startsWith("join-user:")) {
+          const userId = room.split(":")[1];
+          console.log(`🔌 Re-joining user room for user: ${userId}`);
+          this.socket.emit("join-user", userId);
+        } else {
+          console.log(`🔌 Re-joining room: ${room}`);
+          this.socket.emit(room);
+        }
       });
     });
 
@@ -57,8 +63,14 @@ class SocketService {
 
       // Re-join rooms after reconnection
       this.roomsJoined.forEach((room) => {
-        console.log(`🔌 Re-joining room after reconnect: ${room}`);
-        this.socket.emit(room);
+        if (room.startsWith("join-user:")) {
+          const userId = room.split(":")[1];
+          console.log(`🔌 Re-joining user room after reconnect: ${userId}`);
+          this.socket.emit("join-user", userId);
+        } else {
+          console.log(`🔌 Re-joining room after reconnect: ${room}`);
+          this.socket.emit(room);
+        }
       });
     });
 
@@ -134,6 +146,49 @@ class SocketService {
           this.joinEnforcementRoom();
         });
       }
+    }
+  }
+
+  joinUserRoom(userId) {
+    if (!userId) {
+      console.warn("Cannot join user room without userId");
+      return;
+    }
+    if (this.socket && this.isConnected) {
+      const key = `join-user:${userId}`;
+      if (!this.roomsJoined.has(key)) {
+        this.socket.emit("join-user", userId);
+        this.roomsJoined.add(key);
+        console.log(`🧑‍💻 Joined user room for user: ${userId}`);
+      } else {
+        console.log(`🧑‍💻 Already joined user room for user: ${userId}`);
+      }
+    } else {
+      console.warn("Socket not connected, cannot join user room now");
+      if (this.socket) {
+        this.socket.once("connect", () => this.joinUserRoom(userId));
+      }
+    }
+  }
+
+  onReportStatusUpdated(callback) {
+    if (!this.socket) return;
+    const eventName = "reportStatusUpdated";
+    this.socket.off(eventName, callback);
+    this.socket.on(eventName, (payload) => callback(payload));
+    if (!this.listeners.has(eventName)) this.listeners.set(eventName, []);
+    const arr = this.listeners.get(eventName);
+    if (!arr.includes(callback)) arr.push(callback);
+  }
+
+  offReportStatusUpdated(callback) {
+    if (!this.socket) return;
+    const eventName = "reportStatusUpdated";
+    this.socket.off(eventName, callback);
+    if (this.listeners.has(eventName)) {
+      const arr = this.listeners.get(eventName);
+      const idx = arr.indexOf(callback);
+      if (idx > -1) arr.splice(idx, 1);
     }
   }
 

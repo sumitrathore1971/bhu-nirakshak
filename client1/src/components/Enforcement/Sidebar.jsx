@@ -12,7 +12,7 @@ import {
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/enforcement' },
-  { id: 'cases', label: 'Case Management', icon: FolderOpen, path: '/enforcement/cases' },
+  { id: 'cases', label: 'Citizen Reports', icon: FolderOpen, path: '/enforcement/cases' },
   { id: 'drones', label: 'Drone Operations', icon: Drone, path: '/enforcement/drones' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/enforcement/analytics' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/enforcement/settings' },
@@ -27,7 +27,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, activePage, setAc
     >
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-neutral-800">
+        <div className="p-5 border-b border-gray-200 dark:border-neutral-800">
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <motion.div
@@ -35,12 +35,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, activePage, setAc
                 animate={{ opacity: 1 }}
                 className="flex items-center space-x-3"
               >
-                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-md">
-                  <span className="text-white font-bold text-sm">BN</span>
+               <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
+                 <img src="/assets/logo.png" alt="logo" />
                 </div>
                 <div>
-                  <span className="font-heading font-bold text-lg text-gray-900 dark:text-white">Enforcement</span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Portal</p>
+                  <span className="font-heading font-bold text-lg text-gray-900 dark:text-white">Bhu-Nirakshak</span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Enforcement Portal</p>
                 </div>
               </motion.div>
             )}

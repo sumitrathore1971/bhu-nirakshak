@@ -12,8 +12,13 @@ import { Pool } from "pg";
 import { sequelize } from "./config/database.js";
 import Drawing from "./models/Drawing.js";
 import Report from "./models/Report.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
@@ -63,6 +68,9 @@ app.use(
 
 app.use(express.json());
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Make io available to routes via middleware
 app.use((req, res, next) => {
   req.io = io;
@@ -91,6 +99,14 @@ io.on("connection", (socket) => {
       "📢 Enforcement room members:",
       io.sockets.adapter.rooms.get("enforcement-room")?.size || 0
     );
+  });
+
+  // Join user-specific room for citizen notifications
+  socket.on("join-user", (userId) => {
+    if (!userId) return;
+    const room = `user-${userId}`;
+    socket.join(room);
+    console.log("Citizen joined user room:", room, socket.id);
   });
 
   // Handle case assignment from admin to enforcement

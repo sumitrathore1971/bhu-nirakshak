@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Access Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .image-test { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        img { max-width: 300px; max-height: 200px; margin: 10px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Image Access Test</h1>
+    <p>Testing if images are accessible from the backend server...</p>
+    
+    <div class="image-test">
+        <h3>Test Image 1</h3>
+        <p>URL: <code>http://localhost:8080/uploads/media-1755420669900-406114114.jpg</code></p>
+        <img src="http://localhost:8080/uploads/media-1755420669900-406114114.jpg" 
+             alt="Test Image 1" 
+             onload="this.parentElement.querySelector('.status').textContent = '✅ Loaded successfully'; this.parentElement.querySelector('.status').className = 'status success';"
+             onerror="this.parentElement.querySelector('.status').textContent = '❌ Failed to load'; this.parentElement.querySelector('.status').className = 'status error';">
+        <p class="status">Loading...</p>
+    </div>
+    
+    <div class="image-test">
+        <h3>Test Image 2</h3>
+        <p>URL: <code>http://localhost:8080/uploads/media-1755421027839-471029192.jpg</code></p>
+        <img src="http://localhost:8080/uploads/media-1755421027839-471029192.jpg" 
+             alt="Test Image 2" 
+             onload="this.parentElement.querySelector('.status').textContent = '✅ Loaded successfully'; this.parentElement.querySelector('.status').className = 'status success';"
+             onerror="this.parentElement.querySelector('.status').textContent = '❌ Failed to load'; this.parentElement.querySelector('.status').className = 'status error';">
+        <p class="status">Loading...</p>
+    </div>
+    
+    <div class="image-test">
+        <h3>Test Image 3</h3>
+        <p>URL: <code>http://localhost:8080/uploads/media-1755421489372-77881284.jpg</code></p>
+        <img src="http://localhost:8080/uploads/media-1755421489372-77881284.jpg" 
+             alt="Test Image 3" 
+             onload="this.parentElement.querySelector('.status').textContent = '✅ Loaded successfully'; this.parentElement.querySelector('.status').className = 'status success';"
+             onerror="this.parentElement.querySelector('.status').textContent = '❌ Failed to load'; this.parentElement.querySelector('.status').className = 'status error';">
+        <p class="status">Loading...</p>
+    </div>
+    
+    <script>
+        // Test if backend server is running
+        fetch('http://localhost:8080/')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('server-status').textContent = '✅ Backend server is running';
+                    document.getElementById('server-status').className = 'success';
+                } else {
+                    document.getElementById('server-status').textContent = '❌ Backend server responded with error';
+                    document.getElementById('server-status').className = 'error';
+                }
+            })
+            .catch(error => {
+                document.getElementById('server-status').textContent = '❌ Backend server is not running';
+                document.getElementById('server-status').className = 'error';
+            });
+    </script>
+    
+    <div class="image-test">
+        <h3>Server Status</h3>
+        <p id="server-status">Checking...</p>
+    </div>
+</body>
+</html>
