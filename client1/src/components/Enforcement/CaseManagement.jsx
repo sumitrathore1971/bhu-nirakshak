@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -21,6 +21,8 @@ import socketService from "../../services/socketService.js";
 import reportService from "../../services/reportService.js";
 import { useAuth } from "../../context/AuthContext";
 import { getStaticBaseUrl } from "../../lib/utils.js";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 // Remove mock data - we'll use real data from socket and API
 
@@ -46,8 +48,103 @@ export default function CaseManagement() {
   const [cases, setCases] = useState([]); // Start with empty array
   const [loading, setLoading] = useState(true);
   const [showClosedCases, setShowClosedCases] = useState(false);
-  const [newAssignmentNotification, setNewAssignmentNotification] = useState(null);
+  const [newAssignmentNotification, setNewAssignmentNotification] =
+    useState(null);
   const { showFlashMessage } = useAuth() || { showFlashMessage: () => {} };
+
+  // Geometry preview state for selected case
+  const [geometry, setGeometry] = useState(null);
+  const [geomError, setGeomError] = useState("");
+  const [geomLoading, setGeomLoading] = useState(false);
+
+  // MiniMap to render polygon geometry (non-interactive)
+  function MiniMap({ geometry, color = "#3b82f6" }) {
+    const containerRef = useRef(null);
+    const mapRef = useRef(null);
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+
+    const bbox = useMemo(() => {
+      try {
+        const coords = geometry?.coordinates?.[0] || [];
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        coords.forEach(([x, y]) => {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        });
+        if (!isFinite(minX)) return null;
+        return [
+          [minX, minY],
+          [maxX, maxY],
+        ];
+      } catch {
+        return null;
+      }
+    }, [geometry]);
+
+    useEffect(() => {
+      if (!token || !containerRef.current || mapRef.current) return;
+      mapboxgl.accessToken = token;
+      const map = new mapboxgl.Map({
+        container: containerRef.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [75.8577, 22.7196],
+        zoom: 10,
+        interactive: false,
+      });
+      mapRef.current = map;
+
+      map.on("load", () => {
+        const id = `poly-${Math.random().toString(36).slice(2)}`;
+        map.addSource(id, {
+          type: "geojson",
+          data: { type: "Feature", geometry, properties: {} },
+        });
+        map.addLayer({
+          id: `${id}-fill`,
+          type: "fill",
+          source: id,
+          paint: { "fill-color": color, "fill-opacity": 0.35 },
+        });
+        map.addLayer({
+          id: `${id}-line`,
+          type: "line",
+          source: id,
+          paint: { "line-color": color, "line-width": 2 },
+        });
+
+        if (bbox) {
+          map.fitBounds(bbox, { padding: 10, duration: 0 });
+        }
+      });
+
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }, [token]);
+
+    if (!token) {
+      return (
+        <div className="w-full h-40 rounded-md overflow-hidden border border-gray-200 dark:border-neutral-800 grid place-items-center text-xs text-gray-600 dark:text-gray-400">
+          Set VITE_MAPBOX_TOKEN to view polygon map
+        </div>
+      );
+    }
+
+    return (
+      <div
+        ref={containerRef}
+        className="w-full h-40 rounded-md overflow-hidden border border-gray-200 dark:border-neutral-800"
+      />
+    );
+  }
 
   // Function to fetch existing assigned reports from backend
   const fetchAssignedReports = async () => {
@@ -130,11 +227,14 @@ export default function CaseManagement() {
       saveCasesToStorage(updatedCases);
       return updatedCases;
     });
-    
+
     // Show notification for new assignment
     setNewAssignmentNotification(newCase);
-    showFlashMessage(`New case ${newCase.id} assigned to enforcement`, "success");
-    
+    showFlashMessage(
+      `New case ${newCase.id} assigned to enforcement`,
+      "success"
+    );
+
     // Auto-hide notification after 5 seconds
     setTimeout(() => {
       setNewAssignmentNotification(null);
@@ -172,9 +272,12 @@ export default function CaseManagement() {
       saveCasesToStorage(updatedCases);
       return updatedCases;
     });
-    
+
     // Show success message
-    showFlashMessage(`Case ${caseId} status updated to ${newStatus}`, "success");
+    showFlashMessage(
+      `Case ${caseId} status updated to ${newStatus}`,
+      "success"
+    );
   };
 
   // Function to start working on a case
@@ -204,7 +307,7 @@ export default function CaseManagement() {
       saveCasesToStorage(updatedCases);
       return updatedCases;
     });
-    
+
     showFlashMessage("Note added to case", "success");
   };
 
@@ -230,34 +333,40 @@ export default function CaseManagement() {
       saveCasesToStorage(updatedCases);
       return updatedCases;
     });
-    
+
     showFlashMessage("Case marked as urgent", "success");
   };
 
   // Function to check if a file is an image
   const isImage = (mimeType) => {
-    return mimeType && typeof mimeType === 'string' && mimeType.startsWith('image/');
+    return (
+      mimeType && typeof mimeType === "string" && mimeType.startsWith("image/")
+    );
   };
 
   // Function to get the full URL for media files
   const getMediaUrl = (mediaItem) => {
     // Handle string media entries (e.g., just a filename or path)
-    if (typeof mediaItem === 'string') {
+    if (typeof mediaItem === "string") {
       const value = mediaItem.trim();
       const baseUrl = getStaticBaseUrl();
-      if (value.startsWith('http://') || value.startsWith('https://')) return value;
-      if (value.startsWith('/uploads/')) return `${baseUrl}${value}`;
+      if (value.startsWith("http://") || value.startsWith("https://"))
+        return value;
+      if (value.startsWith("/uploads/")) return `${baseUrl}${value}`;
       // assume bare filename
       return `${baseUrl}/uploads/${value}`;
     }
-    if (mediaItem && typeof mediaItem === 'object') {
+    if (mediaItem && typeof mediaItem === "object") {
       if (mediaItem.url) {
         // If it's already a full URL, use it as is
-        if (mediaItem.url.startsWith('http://') || mediaItem.url.startsWith('https://')) {
+        if (
+          mediaItem.url.startsWith("http://") ||
+          mediaItem.url.startsWith("https://")
+        ) {
           return mediaItem.url;
         }
         // If it's a relative path, construct the full URL
-        if (mediaItem.url.startsWith('/uploads/')) {
+        if (mediaItem.url.startsWith("/uploads/")) {
           const baseUrl = getStaticBaseUrl();
           return `${baseUrl}${mediaItem.url}`;
         }
@@ -272,21 +381,23 @@ export default function CaseManagement() {
   };
 
   const getFileExtension = (name) => {
-    if (!name || typeof name !== 'string') return '';
-    const idx = name.lastIndexOf('.')
-    return idx >= 0 ? name.slice(idx + 1).toLowerCase() : '';
+    if (!name || typeof name !== "string") return "";
+    const idx = name.lastIndexOf(".");
+    return idx >= 0 ? name.slice(idx + 1).toLowerCase() : "";
   };
 
   const looksLikeImageByName = (name) => {
     const ext = getFileExtension(name);
-    return ['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext);
+    return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
   };
 
   const normalizeMediaItem = (item) => {
-    if (typeof item === 'string') {
+    if (typeof item === "string") {
       const url = getMediaUrl(item);
-      const originalName = item.split('/').pop();
-      const mimeType = looksLikeImageByName(originalName) ? `image/${getFileExtension(originalName)}` : undefined;
+      const originalName = item.split("/").pop();
+      const mimeType = looksLikeImageByName(originalName)
+        ? `image/${getFileExtension(originalName)}`
+        : undefined;
       return {
         filename: originalName,
         originalName,
@@ -295,11 +406,11 @@ export default function CaseManagement() {
         url,
       };
     }
-    if (item && typeof item === 'object') {
+    if (item && typeof item === "object") {
       const url = getMediaUrl(item);
       return {
-        filename: item.filename || item.name || item.url || '',
-        originalName: item.originalName || item.name || item.filename || '',
+        filename: item.filename || item.name || item.url || "",
+        originalName: item.originalName || item.name || item.filename || "",
         mimeType: item.mimeType || item.type,
         size: item.size || 0,
         url,
@@ -309,12 +420,14 @@ export default function CaseManagement() {
   };
 
   const resolveCaseMedia = (caseItem) => {
-    const rawMedia = (caseItem.photos && caseItem.photos.length > 0)
-      ? caseItem.photos
-      : (caseItem.originalReport?.media || caseItem.originalReport?.photos || caseItem.originalReport?.images || []);
-    return (rawMedia || [])
-      .map(normalizeMediaItem)
-      .filter(Boolean);
+    const rawMedia =
+      caseItem.photos && caseItem.photos.length > 0
+        ? caseItem.photos
+        : caseItem.originalReport?.media ||
+          caseItem.originalReport?.photos ||
+          caseItem.originalReport?.images ||
+          [];
+    return (rawMedia || []).map(normalizeMediaItem).filter(Boolean);
   };
 
   useEffect(() => {
@@ -391,11 +504,14 @@ export default function CaseManagement() {
       const matchesSearch =
         caseItem.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         caseItem.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        caseItem.violationType.toLowerCase().includes(searchQuery.toLowerCase());
+        caseItem.violationType
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
       const matchesStatus =
         statusFilter === "All" || caseItem.status === statusFilter;
       const matchesPriority =
-        priorityFilter === "All" || caseItem.originalReport?.priority === priorityFilter;
+        priorityFilter === "All" ||
+        caseItem.originalReport?.priority === priorityFilter;
 
       // Handle closed cases
       if (caseItem.status === "Closed" && !showClosedCases) {
@@ -411,9 +527,11 @@ export default function CaseManagement() {
         case "riskScore":
           return b.riskScore - a.riskScore;
         case "priority":
-          const priorityOrder = { "Critical": 4, "High": 3, "Medium": 2, "Low": 1 };
-          const aPriority = priorityOrder[a.originalReport?.priority || "Medium"] || 2;
-          const bPriority = priorityOrder[b.originalReport?.priority || "Medium"] || 2;
+          const priorityOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+          const aPriority =
+            priorityOrder[a.originalReport?.priority || "Medium"] || 2;
+          const bPriority =
+            priorityOrder[b.originalReport?.priority || "Medium"] || 2;
           return bPriority - aPriority;
         default:
           return 0;
@@ -432,19 +550,47 @@ export default function CaseManagement() {
           if (fresh) {
             enriched = {
               ...caseItem,
-              photos: fresh.media || fresh.photos || fresh.images || caseItem.photos || [],
+              photos:
+                fresh.media ||
+                fresh.photos ||
+                fresh.images ||
+                caseItem.photos ||
+                [],
               originalReport: fresh,
             };
           }
         } catch (fetchErr) {
-          console.warn('Failed to fetch report details, using local case data:', fetchErr);
+          console.warn(
+            "Failed to fetch report details, using local case data:",
+            fetchErr
+          );
         }
       }
       setSelectedCase(enriched);
+      // Load geometry for this case
+      try {
+        setGeomLoading(true);
+        setGeomError("");
+        const reportId = enriched?.originalReport?.reportId || enriched?.id;
+        if (reportId) {
+          const fc = await reportService.getEncroachmentReportsGeoJSON(
+            reportId
+          );
+          const geom = fc?.features?.[0]?.geometry || null;
+          setGeometry(geom);
+        } else {
+          setGeometry(null);
+        }
+      } catch (e) {
+        setGeomError(e?.message || "Failed to load geometry");
+        setGeometry(null);
+      } finally {
+        setGeomLoading(false);
+      }
       // Open Photos tab by default so images are immediately visible
       setActiveTab("photos");
     } catch (err) {
-      console.error('Error preparing case details:', err);
+      console.error("Error preparing case details:", err);
       setSelectedCase(caseItem);
       setActiveTab("photos");
     }
@@ -468,16 +614,22 @@ export default function CaseManagement() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <CheckCircle className="text-blue-600 dark:text-blue-400" size={20} />
+                <CheckCircle
+                  className="text-blue-600 dark:text-blue-400"
+                  size={20}
+                />
                 <div>
                   <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
                     New Case Assigned
                   </h3>
                   <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Case {newAssignmentNotification.id} - {newAssignmentNotification.violationType} at {newAssignmentNotification.location}
+                    Case {newAssignmentNotification.id} -{" "}
+                    {newAssignmentNotification.violationType} at{" "}
+                    {newAssignmentNotification.location}
                   </p>
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                    Risk Score: {newAssignmentNotification.riskScore} • Submitted by: {newAssignmentNotification.submittedBy}
+                    Risk Score: {newAssignmentNotification.riskScore} •
+                    Submitted by: {newAssignmentNotification.submittedBy}
                   </p>
                 </div>
               </div>
@@ -515,7 +667,7 @@ export default function CaseManagement() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <button 
+            <button
               onClick={fetchAssignedReports}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors flex items-center space-x-2 shadow-md"
             >
@@ -547,28 +699,32 @@ export default function CaseManagement() {
               <Download size={16} />
               <span>Clear Closed Cases</span>
             </button>
-            <button 
+            <button
               onClick={() => {
                 if (cases.length === 0) {
                   showFlashMessage("No cases to export", "warning");
                   return;
                 }
-                const csvData = cases.map(c => ({
-                  'Case ID': c.id,
-                  'Location': c.location,
-                  'Violation Type': c.violationType,
-                  'Status': c.status,
-                  'Submitted By': c.submittedBy,
-                  'Date': c.date,
-                  'Risk Score': c.riskScore
+                const csvData = cases.map((c) => ({
+                  "Case ID": c.id,
+                  Location: c.location,
+                  "Violation Type": c.violationType,
+                  Status: c.status,
+                  "Submitted By": c.submittedBy,
+                  Date: c.date,
+                  "Risk Score": c.riskScore,
                 }));
-                const csv = Object.keys(csvData[0] || {}).join(',') + '\n' + 
-                           csvData.map(row => Object.values(row).join(',')).join('\n');
-                const blob = new Blob([csv], { type: 'text/csv' });
+                const csv =
+                  Object.keys(csvData[0] || {}).join(",") +
+                  "\n" +
+                  csvData.map((row) => Object.values(row).join(",")).join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
                 const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
+                const a = document.createElement("a");
                 a.href = url;
-                a.download = `enforcement-cases-${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `enforcement-cases-${
+                  new Date().toISOString().split("T")[0]
+                }.csv`;
                 a.click();
                 window.URL.revokeObjectURL(url);
                 showFlashMessage("Cases exported successfully", "success");
@@ -594,49 +750,57 @@ export default function CaseManagement() {
                 <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Pending
+                </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {cases.filter(c => c.status === "Pending").length}
+                  {cases.filter((c) => c.status === "Pending").length}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 p-6">
             <div className="flex items-center">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
                 <AlertTriangle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  In Progress
+                </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {cases.filter(c => c.status === "In Progress").length}
+                  {cases.filter((c) => c.status === "In Progress").length}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                 <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Verified</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Verified
+                </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {cases.filter(c => c.status === "Verified").length}
+                  {cases.filter((c) => c.status === "Verified").length}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                 <FileText className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Cases</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Total Cases
+                </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {cases.length}
                 </p>
@@ -652,85 +816,85 @@ export default function CaseManagement() {
           transition={{ delay: 0.2 }}
           className="bg-white dark:bg-neutral-900 rounded-xl shadow-md border border-gray-200 dark:border-neutral-800 p-6"
         >
-                  <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
-              />
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
+                <input
+                  type="text"
+                  placeholder="Search cases by ID, address, or violation type..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                />
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="lg:w-40">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+              >
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Verified">Verified</option>
+                <option value="Action Taken">Action Taken</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+
+            {/* Priority Filter */}
+            <div className="lg:w-40">
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+              >
+                <option value="All">All Priority</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+
+            {/* Sort By */}
+            <div className="lg:w-40">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+              >
+                <option value="date">Sort by Date</option>
+                <option value="riskScore">Sort by Risk Score</option>
+                <option value="priority">Sort by Priority</option>
+              </select>
+            </div>
+
+            {/* Show Closed Cases Toggle */}
+            <div className="flex items-center space-x-2">
               <input
-                type="text"
-                placeholder="Search cases by ID, address, or violation type..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                type="checkbox"
+                id="showClosedCases"
+                checked={showClosedCases}
+                onChange={(e) => setShowClosedCases(e.target.checked)}
+                className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
               />
+              <label
+                htmlFor="showClosedCases"
+                className="text-sm text-gray-700 dark:text-gray-300"
+              >
+                Show Closed Cases
+              </label>
             </div>
           </div>
-
-          {/* Status Filter */}
-          <div className="lg:w-40">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
-            >
-              <option value="All">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Verified">Verified</option>
-              <option value="Action Taken">Action Taken</option>
-              <option value="Closed">Closed</option>
-            </select>
-          </div>
-
-          {/* Priority Filter */}
-          <div className="lg:w-40">
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
-            >
-              <option value="All">All Priority</option>
-              <option value="Critical">Critical</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
-
-          {/* Sort By */}
-          <div className="lg:w-40">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
-            >
-              <option value="date">Sort by Date</option>
-              <option value="riskScore">Sort by Risk Score</option>
-              <option value="priority">Sort by Priority</option>
-            </select>
-          </div>
-
-          {/* Show Closed Cases Toggle */}
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="showClosedCases"
-              checked={showClosedCases}
-              onChange={(e) => setShowClosedCases(e.target.checked)}
-              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
-            />
-            <label
-              htmlFor="showClosedCases"
-              className="text-sm text-gray-700 dark:text-gray-300"
-            >
-              Show Closed Cases
-            </label>
-          </div>
-        </div>
         </motion.div>
 
         {/* Cases Table */}
@@ -801,12 +965,18 @@ export default function CaseManagement() {
                         </div>
                         {caseItem.originalReport?.priority && (
                           <div className="mt-1">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              caseItem.originalReport.priority === "Critical" ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400" :
-                              caseItem.originalReport.priority === "High" ? "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400" :
-                              caseItem.originalReport.priority === "Medium" ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400" :
-                              "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
-                            }`}>
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                caseItem.originalReport.priority === "Critical"
+                                  ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
+                                  : caseItem.originalReport.priority === "High"
+                                  ? "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400"
+                                  : caseItem.originalReport.priority ===
+                                    "Medium"
+                                  ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
+                                  : "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
+                              }`}
+                            >
                               {caseItem.originalReport.priority}
                             </span>
                           </div>
@@ -863,9 +1033,11 @@ export default function CaseManagement() {
                           >
                             {caseItem.status}
                           </span>
-                          {caseItem.actionHistory?.some(action => 
-                            action.action === "Assigned to Enforcement" && 
-                            action.date === new Date().toISOString().split("T")[0]
+                          {caseItem.actionHistory?.some(
+                            (action) =>
+                              action.action === "Assigned to Enforcement" &&
+                              action.date ===
+                                new Date().toISOString().split("T")[0]
                           ) && (
                             <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400">
                               New Assignment
@@ -1031,8 +1203,9 @@ export default function CaseManagement() {
                                 Date Assigned:
                               </span>
                               <span className="text-gray-900 dark:text-white font-medium">
-                                {selectedCase.actionHistory?.find(action => 
-                                  action.action === "Assigned to Enforcement"
+                                {selectedCase.actionHistory?.find(
+                                  (action) =>
+                                    action.action === "Assigned to Enforcement"
                                 )?.date || "N/A"}
                               </span>
                             </div>
@@ -1042,15 +1215,25 @@ export default function CaseManagement() {
                               </span>
                               <span className="text-gray-900 dark:text-white font-medium">
                                 {selectedCase.originalReport?.priority ? (
-                                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                    selectedCase.originalReport.priority === "Critical" ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400" :
-                                    selectedCase.originalReport.priority === "High" ? "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400" :
-                                    selectedCase.originalReport.priority === "Medium" ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400" :
-                                    "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
-                                  }`}>
+                                  <span
+                                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                      selectedCase.originalReport.priority ===
+                                      "Critical"
+                                        ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
+                                        : selectedCase.originalReport
+                                            .priority === "High"
+                                        ? "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400"
+                                        : selectedCase.originalReport
+                                            .priority === "Medium"
+                                        ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
+                                        : "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
+                                    }`}
+                                  >
                                     {selectedCase.originalReport.priority}
                                   </span>
-                                ) : "Medium"}
+                                ) : (
+                                  "Medium"
+                                )}
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -1065,6 +1248,24 @@ export default function CaseManagement() {
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                            Encroachment Area
+                          </h3>
+                          {geomLoading ? (
+                            <div className="w-full h-40 rounded-md grid place-items-center text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-800">
+                              Loading map…
+                            </div>
+                          ) : geometry ? (
+                            <MiniMap geometry={geometry} />
+                          ) : geomError ? (
+                            <div className="text-xs text-red-600 dark:text-red-400">
+                              {geomError}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              No polygon submitted for this case
+                            </div>
+                          )}
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 mt-6">
                             Description
                           </h3>
                           <p className="text-gray-700 dark:text-gray-300">
@@ -1084,50 +1285,81 @@ export default function CaseManagement() {
                         {resolveCaseMedia(selectedCase).length > 0 ? (
                           resolveCaseMedia(selectedCase).map((media, index) => {
                             const mediaUrl = getMediaUrl(media);
-                            const isImageFile = isImage(media.mimeType) || looksLikeImageByName(media.originalName || media.filename || media.url);
-                            
-                            console.log(`Enforcement Portal - Rendering media ${index}:`, {
-                              media,
-                              mediaUrl,
-                              isImageFile,
-                              mimeType: media.mimeType
-                            });
-                            
+                            const isImageFile =
+                              isImage(media.mimeType) ||
+                              looksLikeImageByName(
+                                media.originalName ||
+                                  media.filename ||
+                                  media.url
+                              );
+
+                            console.log(
+                              `Enforcement Portal - Rendering media ${index}:`,
+                              {
+                                media,
+                                mediaUrl,
+                                isImageFile,
+                                mimeType: media.mimeType,
+                              }
+                            );
+
                             return (
-                              <div key={index} className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+                              <div
+                                key={index}
+                                className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden"
+                              >
                                 {isImageFile && mediaUrl ? (
                                   <div className="space-y-2">
                                     <img
                                       src={mediaUrl}
-                                      alt={media.originalName || media.filename || `media-${index}`}
+                                      alt={
+                                        media.originalName ||
+                                        media.filename ||
+                                        `media-${index}`
+                                      }
                                       className="w-full h-48 object-cover"
                                       onError={(e) => {
-                                        console.error(`Image failed to load: ${mediaUrl}`, e);
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
+                                        console.error(
+                                          `Image failed to load: ${mediaUrl}`,
+                                          e
+                                        );
+                                        e.target.style.display = "none";
+                                        e.target.nextSibling.style.display =
+                                          "flex";
                                       }}
                                     />
                                     <div className="hidden flex items-center justify-center h-48 bg-gray-100 dark:bg-neutral-800">
                                       <div className="text-center">
-                                        <ImageIcon size={32} className="mx-auto text-gray-400 mb-2" />
-                                        <p className="text-sm text-gray-500">Image not available</p>
+                                        <ImageIcon
+                                          size={32}
+                                          className="mx-auto text-gray-400 mb-2"
+                                        />
+                                        <p className="text-sm text-gray-500">
+                                          Image not available
+                                        </p>
                                       </div>
                                     </div>
                                     <div className="p-2">
                                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                                        {media.originalName} • {(media.size / 1024 / 1024).toFixed(2)} MB
+                                        {media.originalName} •{" "}
+                                        {(media.size / 1024 / 1024).toFixed(2)}{" "}
+                                        MB
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-neutral-800 h-48">
-                                    <FileText size={24} className="text-gray-400" />
+                                    <FileText
+                                      size={24}
+                                      className="text-gray-400"
+                                    />
                                     <div className="flex-1">
                                       <p className="text-sm font-medium text-gray-900 dark:text-white">
                                         {media.originalName}
                                       </p>
                                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {(media.size / 1024 / 1024).toFixed(2)} MB • {media.mimeType}
+                                        {(media.size / 1024 / 1024).toFixed(2)}{" "}
+                                        MB • {media.mimeType}
                                       </p>
                                     </div>
                                     {mediaUrl && (
@@ -1147,7 +1379,10 @@ export default function CaseManagement() {
                           })
                         ) : (
                           <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400">
-                            <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
+                            <ImageIcon
+                              size={48}
+                              className="mx-auto mb-3 text-gray-300"
+                            />
                             <p>No media files attached to this case</p>
                           </div>
                         )}
@@ -1173,7 +1408,7 @@ export default function CaseManagement() {
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                         Action History
                       </h3>
-                      
+
                       {/* Add Note Section */}
                       <div className="mb-6 p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg">
                         <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
@@ -1185,9 +1420,12 @@ export default function CaseManagement() {
                             placeholder="Enter your note..."
                             className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
                             onKeyPress={(e) => {
-                              if (e.key === 'Enter' && e.target.value.trim()) {
-                                addNoteToCase(selectedCase.id, e.target.value.trim());
-                                e.target.value = '';
+                              if (e.key === "Enter" && e.target.value.trim()) {
+                                addNoteToCase(
+                                  selectedCase.id,
+                                  e.target.value.trim()
+                                );
+                                e.target.value = "";
                               }
                             }}
                           />
@@ -1195,8 +1433,11 @@ export default function CaseManagement() {
                             onClick={(e) => {
                               const input = e.target.previousSibling;
                               if (input.value.trim()) {
-                                addNoteToCase(selectedCase.id, input.value.trim());
-                                input.value = '';
+                                addNoteToCase(
+                                  selectedCase.id,
+                                  input.value.trim()
+                                );
+                                input.value = "";
                               }
                             }}
                             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
@@ -1212,14 +1453,16 @@ export default function CaseManagement() {
                           <div
                             key={index}
                             className={`flex items-center space-x-3 p-3 rounded-lg ${
-                              action.isNote 
-                                ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800" 
+                              action.isNote
+                                ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
                                 : "bg-gray-50 dark:bg-neutral-800"
                             }`}
                           >
-                            <div className={`w-2 h-2 rounded-full ${
-                              action.isNote ? "bg-blue-500" : "bg-primary"
-                            }`}></div>
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                action.isNote ? "bg-blue-500" : "bg-primary"
+                              }`}
+                            ></div>
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900 dark:text-white">
                                 {action.action}

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -37,20 +39,145 @@ export default function CitizenReports() {
   });
   const [updatingReportId, setUpdatingReportId] = useState(null);
 
+  // Geometry preview state for selected report
+  const [geometry, setGeometry] = useState(null);
+  const [geomError, setGeomError] = useState("");
+  const [geomLoading, setGeomLoading] = useState(false);
+
+  // MiniMap to render polygon geometry (non-interactive)
+  function MiniMap({ geometry, color = "#3b82f6" }) {
+    const containerRef = useRef(null);
+    const mapRef = useRef(null);
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+
+    const bbox = useMemo(() => {
+      try {
+        const coords = geometry?.coordinates?.[0] || [];
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        coords.forEach(([x, y]) => {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        });
+        if (!isFinite(minX)) return null;
+        return [
+          [minX, minY],
+          [maxX, maxY],
+        ];
+      } catch {
+        return null;
+      }
+    }, [geometry]);
+
+    useEffect(() => {
+      if (!token || !containerRef.current || mapRef.current) return;
+      mapboxgl.accessToken = token;
+      const map = new mapboxgl.Map({
+        container: containerRef.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [75.8577, 22.7196],
+        zoom: 10,
+        interactive: false,
+      });
+      mapRef.current = map;
+
+      map.on("load", () => {
+        const id = `poly-${Math.random().toString(36).slice(2)}`;
+        map.addSource(id, {
+          type: "geojson",
+          data: { type: "Feature", geometry, properties: {} },
+        });
+        map.addLayer({
+          id: `${id}-fill`,
+          type: "fill",
+          source: id,
+          paint: { "fill-color": color, "fill-opacity": 0.35 },
+        });
+        map.addLayer({
+          id: `${id}-line`,
+          type: "line",
+          source: id,
+          paint: { "line-color": color, "line-width": 2 },
+        });
+
+        if (bbox) {
+          map.fitBounds(bbox, { padding: 10, duration: 0 });
+        }
+      });
+
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }, [token]);
+
+    if (!token) {
+      return (
+        <div className="w-full h-40 rounded-md overflow-hidden border border-gray-200 dark:border-neutral-800 grid place-items-center text-xs text-gray-600 dark:text-gray-400">
+          Set VITE_MAPBOX_TOKEN to view polygon map
+        </div>
+      );
+    }
+
+    return (
+      <div
+        ref={containerRef}
+        className="w-full h-40 rounded-md overflow-hidden border border-gray-200 dark:border-neutral-800"
+      />
+    );
+  }
+
+  // Load geometry for selected report when modal opens/changes
+  useEffect(() => {
+    let active = true;
+    async function loadGeometry() {
+      try {
+        setGeomLoading(true);
+        setGeomError("");
+        const fc = await reportService.getEncroachmentReportsGeoJSON(
+          selected?.reportId
+        );
+        const geom = fc?.features?.[0]?.geometry || null;
+        if (active) setGeometry(geom);
+      } catch (e) {
+        if (active) setGeomError(e?.message || "Failed to load geometry");
+      } finally {
+        if (active) setGeomLoading(false);
+      }
+    }
+    if (selected?.reportId) {
+      loadGeometry();
+    } else {
+      setGeometry(null);
+    }
+    return () => {
+      active = false;
+    };
+  }, [selected?.reportId]);
+
   // Function to check if a file is an image
   const isImage = (mimeType) => {
-    return mimeType && mimeType.startsWith('image/');
+    return mimeType && mimeType.startsWith("image/");
   };
 
   // Function to get the full URL for media files
   const getMediaUrl = (mediaItem) => {
     if (mediaItem.url) {
       // If it's already a full URL, use it as is
-      if (mediaItem.url.startsWith('http://') || mediaItem.url.startsWith('https://')) {
+      if (
+        mediaItem.url.startsWith("http://") ||
+        mediaItem.url.startsWith("https://")
+      ) {
         return mediaItem.url;
       }
       // If it's a relative path, construct the full URL
-      if (mediaItem.url.startsWith('/uploads/')) {
+      if (mediaItem.url.startsWith("/uploads/")) {
         const baseUrl = getStaticBaseUrl();
         const fullUrl = `${baseUrl}${mediaItem.url}`;
         return fullUrl;
@@ -80,26 +207,31 @@ export default function CitizenReports() {
       );
 
       // Debug logging
-      console.log('Admin Portal - API Response:', response);
-      console.log('Admin Portal - Reports data:', response.data?.reports);
+      console.log("Admin Portal - API Response:", response);
+      console.log("Admin Portal - Reports data:", response.data?.reports);
 
       // Handle both new and old response formats
       if (response.success || response.data) {
         const data = response.data || response;
         const reportsData = data.reports || [];
-        
+
         // Debug logging for reports with media
-        const reportsWithMedia = reportsData.filter(report => report.media && report.media.length > 0);
-        console.log('Admin Portal - Reports with media:', reportsWithMedia.length);
+        const reportsWithMedia = reportsData.filter(
+          (report) => report.media && report.media.length > 0
+        );
+        console.log(
+          "Admin Portal - Reports with media:",
+          reportsWithMedia.length
+        );
         reportsWithMedia.forEach((report, index) => {
           console.log(`Admin Portal - Report ${index + 1}:`, {
             reportId: report.reportId,
             title: report.title,
             mediaCount: report.media.length,
-            media: report.media
+            media: report.media,
           });
         });
-        
+
         setReports(reportsData);
         setPagination({
           page: data.currentPage || 1,
@@ -208,7 +340,9 @@ export default function CitizenReports() {
       await reportService.updateReportStatus(report._id, "Rejected");
       // Optimistically update the local list
       setReports((prev) =>
-        prev.map((r) => (r._id === report._id ? { ...r, status: "Rejected" } : r))
+        prev.map((r) =>
+          r._id === report._id ? { ...r, status: "Rejected" } : r
+        )
       );
     } catch (err) {
       console.error("Error rejecting report:", err);
@@ -225,10 +359,14 @@ export default function CitizenReports() {
       await reportService.updateReportStatus(report._id, "Verified");
       // Optimistically update the local list
       setReports((prev) =>
-        prev.map((r) => (r._id === report._id ? { ...r, status: "Verified" } : r))
+        prev.map((r) =>
+          r._id === report._id ? { ...r, status: "Verified" } : r
+        )
       );
       // Also reflect in selected modal if open
-      setSelected((prev) => (prev && prev._id === report._id ? { ...prev, status: "Verified" } : prev));
+      setSelected((prev) =>
+        prev && prev._id === report._id ? { ...prev, status: "Verified" } : prev
+      );
     } catch (err) {
       console.error("Error verifying report:", err);
       setError(err.message || "Failed to verify report");
@@ -245,10 +383,16 @@ export default function CitizenReports() {
       await reportService.updateReportStatus(report._id, "Action Taken");
       // Optimistically update the local list
       setReports((prev) =>
-        prev.map((r) => (r._id === report._id ? { ...r, status: "Action Taken" } : r))
+        prev.map((r) =>
+          r._id === report._id ? { ...r, status: "Action Taken" } : r
+        )
       );
       // Reflect in selected modal if open
-      setSelected((prev) => (prev && prev._id === report._id ? { ...prev, status: "Action Taken" } : prev));
+      setSelected((prev) =>
+        prev && prev._id === report._id
+          ? { ...prev, status: "Action Taken" }
+          : prev
+      );
 
       // Emit assignment notification to enforcement via socket (for their panel)
       try {
@@ -386,7 +530,7 @@ export default function CitizenReports() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Date
                     </th>
-                    
+
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Status
                     </th>
@@ -409,10 +553,15 @@ export default function CitizenReports() {
                         <div className="flex items-start gap-2">
                           <MapPin size={16} className="mt-0.5 text-gray-400" />
                           <div className="flex flex-col">
-                            {Number.isFinite(getLongitude(report)) && Number.isFinite(getLatitude(report)) ? (
+                            {Number.isFinite(getLongitude(report)) &&
+                            Number.isFinite(getLatitude(report)) ? (
                               <>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Lng: {getLongitude(report)}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Lat: {getLatitude(report)}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Lng: {getLongitude(report)}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Lat: {getLatitude(report)}
+                                </span>
                               </>
                             ) : (
                               <span>—</span>
@@ -426,7 +575,7 @@ export default function CitizenReports() {
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                         {formatDate(report.dateOfObservation)}
                       </td>
-                      
+
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
@@ -439,8 +588,14 @@ export default function CitizenReports() {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => {
-                            console.log('Admin Portal - View button clicked for report:', report);
-                            console.log('Admin Portal - Report media:', report.media);
+                            console.log(
+                              "Admin Portal - View button clicked for report:",
+                              report
+                            );
+                            console.log(
+                              "Admin Portal - Report media:",
+                              report.media
+                            );
                             setSelected(report);
                           }}
                           className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
@@ -595,13 +750,20 @@ export default function CitizenReports() {
                             Location:
                           </span>
                           <span className="text-right">
-                            {Number.isFinite(getLongitude(selected)) && Number.isFinite(getLatitude(selected)) ? (
+                            {Number.isFinite(getLongitude(selected)) &&
+                            Number.isFinite(getLatitude(selected)) ? (
                               <>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">Lng: {getLongitude(selected)}</span>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">Lat: {getLatitude(selected)}</span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                  Lng: {getLongitude(selected)}
+                                </span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                  Lat: {getLatitude(selected)}
+                                </span>
                               </>
                             ) : (
-                              <span className="text-gray-900 dark:text-white font-medium">—</span>
+                              <span className="text-gray-900 dark:text-white font-medium">
+                                —
+                              </span>
                             )}
                           </span>
                         </div>
@@ -617,7 +779,7 @@ export default function CitizenReports() {
                             {selected.status}
                           </span>
                         </div>
-                        
+
                         <div className="flex justify-between">
                           <span className="text-gray-600 dark:text-gray-400">
                             Date:
@@ -636,7 +798,26 @@ export default function CitizenReports() {
                         </div>
                       </div>
                     </div>
-                    <div></div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                        Encroachment Area
+                      </h3>
+                      {geomLoading ? (
+                        <div className="w-full h-40 rounded-md grid place-items-center text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-800">
+                          Loading map…
+                        </div>
+                      ) : geometry ? (
+                        <MiniMap geometry={geometry} />
+                      ) : geomError ? (
+                        <div className="text-xs text-red-600 dark:text-red-400">
+                          {geomError}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          No polygon submitted for this report
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -646,24 +827,28 @@ export default function CitizenReports() {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Photos &amp; Videos
                   </h3>
-                  
 
-                  
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {(selected.media || []).length > 0 ? (
                       selected.media.map((media, index) => {
                         const mediaUrl = getMediaUrl(media);
                         const isImageFile = isImage(media.mimeType);
-                        
-                        console.log(`Admin Portal - Rendering media ${index}:`, {
-                          media,
-                          mediaUrl,
-                          isImageFile,
-                          mimeType: media.mimeType
-                        });
-                        
+
+                        console.log(
+                          `Admin Portal - Rendering media ${index}:`,
+                          {
+                            media,
+                            mediaUrl,
+                            isImageFile,
+                            mimeType: media.mimeType,
+                          }
+                        );
+
                         return (
-                          <div key={index} className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+                          <div
+                            key={index}
+                            className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden"
+                          >
                             {isImageFile && mediaUrl ? (
                               <div className="space-y-2">
                                 <img
@@ -671,20 +856,29 @@ export default function CitizenReports() {
                                   alt={media.originalName}
                                   className="w-full h-48 object-cover"
                                   onError={(e) => {
-                                    console.error(`Image failed to load: ${mediaUrl}`, e);
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
+                                    console.error(
+                                      `Image failed to load: ${mediaUrl}`,
+                                      e
+                                    );
+                                    e.target.style.display = "none";
+                                    e.target.nextSibling.style.display = "flex";
                                   }}
                                 />
                                 <div className="hidden flex items-center justify-center h-48 bg-gray-100 dark:bg-neutral-800">
                                   <div className="text-center">
-                                    <ImageIcon size={32} className="mx-auto text-gray-400 mb-2" />
-                                    <p className="text-sm text-gray-500">Image not available</p>
+                                    <ImageIcon
+                                      size={32}
+                                      className="mx-auto text-gray-400 mb-2"
+                                    />
+                                    <p className="text-sm text-gray-500">
+                                      Image not available
+                                    </p>
                                   </div>
                                 </div>
                                 <div className="p-2">
                                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    {media.originalName} • {(media.size / 1024 / 1024).toFixed(2)} MB
+                                    {media.originalName} •{" "}
+                                    {(media.size / 1024 / 1024).toFixed(2)} MB
                                   </div>
                                 </div>
                               </div>
@@ -696,7 +890,8 @@ export default function CitizenReports() {
                                     {media.originalName}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {(media.size / 1024 / 1024).toFixed(2)} MB • {media.mimeType}
+                                    {(media.size / 1024 / 1024).toFixed(2)} MB •{" "}
+                                    {media.mimeType}
                                   </p>
                                 </div>
                                 {mediaUrl && (
@@ -716,7 +911,10 @@ export default function CitizenReports() {
                       })
                     ) : (
                       <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400">
-                        <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
+                        <ImageIcon
+                          size={48}
+                          className="mx-auto mb-3 text-gray-300"
+                        />
                         <p>No media files attached to this report</p>
                       </div>
                     )}
@@ -766,16 +964,28 @@ export default function CitizenReports() {
                     if (!selected?._id) return;
                     await handleReject(selected);
                     // Also reflect in selected modal
-                    setSelected((prev) => prev ? { ...prev, status: "Rejected" } : prev);
+                    setSelected((prev) =>
+                      prev ? { ...prev, status: "Rejected" } : prev
+                    );
                   }}
-                  disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
+                  disabled={
+                    updatingReportId === selected?._id ||
+                    selected?.status === "Rejected"
+                  }
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={selected?.status === 'Rejected' ? 'Already rejected' : 'Reject case'}
+                  title={
+                    selected?.status === "Rejected"
+                      ? "Already rejected"
+                      : "Reject case"
+                  }
                 >
                   Reject Case
                 </button>
                 <button
-                  disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
+                  disabled={
+                    updatingReportId === selected?._id ||
+                    selected?.status === "Rejected"
+                  }
                   className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
                     if (!selected) return;
@@ -786,7 +996,10 @@ export default function CitizenReports() {
                   Assign to Enforcement
                 </button>
                 <button
-                  disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
+                  disabled={
+                    updatingReportId === selected?._id ||
+                    selected?.status === "Rejected"
+                  }
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
                     if (!selected?._id) return;
