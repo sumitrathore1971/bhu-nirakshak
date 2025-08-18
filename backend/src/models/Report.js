@@ -193,6 +193,13 @@ const reportSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    deletedAt: {
+      type: Date
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
     tags: [{
       type: String,
       trim: true
