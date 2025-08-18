@@ -28,6 +28,7 @@ import reportService from "../../services/reportService.js";
 import drawingService from "../../services/drawingService.js";
 import { addBoundaryToMap } from "../../lib/boundary";
 import { notificationEvents } from "./NotificationPanel.jsx"; // Import the global event system
+import { getApiBaseUrl } from "../../lib/utils.js";
 
 const kpis = {
   totalReports: 324,
@@ -41,6 +42,11 @@ export default function AdminDashboardHome() {
   const { isAuthenticated, user } = useAuth();
   const [recentReports, setRecentReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [enforcementOfficers, setEnforcementOfficers] = useState([]);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedReportForAssign, setSelectedReportForAssign] = useState(null);
+  const [selectedOfficerId, setSelectedOfficerId] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
   const [mapLayers, setMapLayers] = useState({
     streets: false,
     satellite: false,
@@ -62,6 +68,7 @@ export default function AdminDashboardHome() {
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   const defaultCenter = { lat: 22.7196, lng: 75.8577 };
   const globalCenter = { lat: 23.5, lng: 78.5 }; // Broader view of central India
+  const API_BASE_URL = getApiBaseUrl();
 
   // Calculate area of a polygon in square kilometers
   function calculateArea(coordinates) {
@@ -421,11 +428,12 @@ export default function AdminDashboardHome() {
   const fetchRecentReports = async () => {
     try {
       setReportsLoading(true);
-      const response = await reportService.getAllReports(1, 10);
+      const response = await reportService.getAllReports(1, 5);
       // Handle both new and old response formats
       if (response.success || response.data) {
         const data = response.data || response;
-        setRecentReports(data.reports || []);
+        const reports = data.reports || [];
+        setRecentReports(reports.slice(0, 5));
 
         // Update map markers if map is loaded
         if (mapRef.current && mapRef.current.isStyleLoaded()) {
@@ -443,7 +451,7 @@ export default function AdminDashboardHome() {
   const handleNewReport = (data) => {
     console.log("📢 Received new report notification in dashboard:", data);
     // Add the new report to the beginning of the list
-    setRecentReports((prev) => [data.report, ...prev.slice(0, -1)]); // Keep the same number of items
+    setRecentReports((prev) => [data.report, ...prev].slice(0, 5)); // Keep max 5 items
 
     // Update map markers if map is loaded
     if (mapRef.current && mapRef.current.isStyleLoaded()) {
@@ -464,6 +472,63 @@ export default function AdminDashboardHome() {
       fetchRecentReports();
     }
   }, [isAuthenticated]);
+
+  // Fetch enforcement officers (Admin only)
+  const fetchEnforcementOfficers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        method: "GET",
+        headers: reportService.getAuthHeaders(),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch users");
+      }
+      const users = data.users || [];
+      const officers = users.filter((u) => u.role === "Enforcement");
+      setEnforcementOfficers(officers);
+    } catch (e) {
+      console.error("Error fetching enforcement officers:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === "Admin") {
+      fetchEnforcementOfficers();
+    }
+  }, [isAuthenticated, user?.role]);
+
+  const openAssignModal = (report) => {
+    setSelectedReportForAssign(report);
+    setSelectedOfficerId("");
+    setAssignModalOpen(true);
+  };
+
+  const handleAssignConfirm = async () => {
+    if (!selectedReportForAssign?._id || !selectedOfficerId) return;
+    try {
+      setAssignLoading(true);
+      await reportService.assignReport(selectedReportForAssign._id, selectedOfficerId);
+      // Optionally reflect assignment in UI
+      setRecentReports((prev) =>
+        prev.map((r) =>
+          r._id === selectedReportForAssign._id
+            ? {
+                ...r,
+                assignedTo: enforcementOfficers.find((o) => o._id === selectedOfficerId) || { _id: selectedOfficerId },
+              }
+            : r
+        )
+      );
+      setAssignModalOpen(false);
+      setSelectedReportForAssign(null);
+      setSelectedOfficerId("");
+    } catch (e) {
+      console.error("Failed to assign report:", e);
+    } finally {
+      setAssignLoading(false);
+    }
+  };
 
   const getRiskColor = (risk) =>
     risk >= 80
@@ -1468,12 +1533,17 @@ export default function AdminDashboardHome() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
+                {user?.role === "Admin" && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-neutral-800">
               {reportsLoading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center">
+                  <td colSpan={user?.role === "Admin" ? 7 : 6} className="px-6 py-8 text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
                     <p className="mt-2 text-gray-600 dark:text-gray-400 text-sm">
                       Loading reports...
@@ -1483,7 +1553,7 @@ export default function AdminDashboardHome() {
               ) : recentReports.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan={user?.role === "Admin" ? 7 : 6}
                     className="px-6 py-8 text-center text-gray-600 dark:text-gray-400"
                   >
                     No reports found
@@ -1533,6 +1603,21 @@ export default function AdminDashboardHome() {
                         {item.status}
                       </span>
                     </td>
+                    {user?.role === "Admin" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {item.assignedTo ? (
+                          <span className="text-gray-600 dark:text-gray-300">Assigned</span>
+                        ) : (
+                          <button
+                            onClick={() => openAssignModal(item)}
+                            className="px-3 py-1.5 bg-primary text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                            disabled={assignLoading}
+                          >
+                            Assign
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -1540,6 +1625,53 @@ export default function AdminDashboardHome() {
           </table>
         </div>
       </div>
+
+      {assignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setAssignModalOpen(false)}></div>
+          <div className="relative bg-white dark:bg-neutral-900 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Assign to Enforcement</h3>
+              <button onClick={() => setAssignModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Officer</label>
+                <select
+                  value={selectedOfficerId}
+                  onChange={(e) => setSelectedOfficerId(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-neutral-700 rounded-md p-2 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white"
+                >
+                  <option value="">-- Choose enforcement officer --</option>
+                  {enforcementOfficers.map((officer) => (
+                    <option key={officer._id} value={officer._id}>
+                      {officer.name} ({officer.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                className="px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800"
+                onClick={() => setAssignModalOpen(false)}
+                disabled={assignLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-primary text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                onClick={handleAssignConfirm}
+                disabled={assignLoading || !selectedOfficerId}
+              >
+                {assignLoading ? "Assigning..." : "Assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Saved Drawings List */}
       {showSavedDrawingsList && (
