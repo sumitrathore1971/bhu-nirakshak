@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../lib/utils.js';
+import { getApiBaseUrl } from "../lib/utils.js";
 
 // Use the utility function to get the API base URL
 const API_BASE_URL = getApiBaseUrl();
@@ -35,19 +35,19 @@ class ReportService {
       for (let attempt = 0; attempt < 2; attempt++) {
         // Create FormData for file upload
         const formData = new FormData();
-        
+
         // Add report data as JSON string
-        formData.append('reportData', JSON.stringify(reportData));
-        
+        formData.append("reportData", JSON.stringify(reportData));
+
         // Add files
         files.forEach((file, index) => {
-          formData.append('media', file);
+          formData.append("media", file);
         });
 
         const response = await fetch(`${this.baseURL}/reports`, {
           method: "POST",
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             // Don't set Content-Type, let browser set it with boundary for FormData
           },
           body: formData,
@@ -88,6 +88,36 @@ class ReportService {
       console.error("Error submitting report:", error);
       throw error;
     }
+  }
+
+  // Submit encroachment polygon geometry to PostGIS API
+  async submitEncroachmentGeometry(
+    geometry,
+    source = "Citizen Report",
+    reportId = null
+  ) {
+    const response = await fetch(`${this.baseURL}/reports`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ geometry, source, reportId }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.message || "Failed to save geometry");
+    }
+    return data;
+  }
+
+  // Fetch all reported polygons as GeoJSON FeatureCollection
+  async getEncroachmentReportsGeoJSON(reportId = null) {
+    const url = new URL(`${this.baseURL}/reports`);
+    url.searchParams.set("geojson", "true");
+    if (reportId) url.searchParams.set("reportId", reportId);
+    const response = await fetch(url.toString());
+    if (!response.ok) throw new Error("Failed to fetch encroachment reports");
+    return response.json();
   }
 
   // Get user's reports

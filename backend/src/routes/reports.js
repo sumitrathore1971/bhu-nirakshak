@@ -6,38 +6,118 @@ import User from "../models/User.js";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import ReportedParcel from "../models/ReportedParcel.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = Router();
+// GeoJSON polygons API (PostGIS)
+// Public GET with query flag `geojson=true` returns FeatureCollection of reported_parcels
+router.get("/", async (req, res, next) => {
+  try {
+    const wantsGeo = String(req.query.geojson || "").toLowerCase() === "true";
+    if (!wantsGeo) return next();
+
+    // Fetch all parcels and build FeatureCollection
+    const where = {};
+    const reportId = req.query.reportId || req.query.report_id;
+    if (reportId) where.report_id = String(reportId);
+    const rows = await ReportedParcel.findAll({
+      where,
+      order: [["detected_on", "DESC"]],
+    });
+
+    const features = rows.map((row) => ({
+      type: "Feature",
+      geometry: row.get("geom"),
+      properties: {
+        id: row.get("id"),
+        report_id: row.get("report_id") || null,
+        source: row.get("source") || "Citizen Report",
+        detected_on: row.get("detected_on"),
+      },
+    }));
+
+    return res.json({ type: "FeatureCollection", features });
+  } catch (err) {
+    console.error("Error fetching reported parcels:", err);
+    return res.status(500).json({ message: "Failed to fetch reports" });
+  }
+});
+
+// Public JSON POST with { geometry: Polygon, source?: string }
+router.post("/", async (req, res, next) => {
+  try {
+    const isJson = req.is("application/json");
+    const { geometry, source, reportId } = req.body || {};
+    if (!isJson || !geometry) return next();
+
+    if (!geometry?.type || geometry.type.toLowerCase() !== "polygon") {
+      return res
+        .status(400)
+        .json({ message: "geometry must be a GeoJSON Polygon" });
+    }
+    if (
+      !Array.isArray(geometry.coordinates) ||
+      geometry.coordinates.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ message: "geometry.coordinates is required" });
+    }
+
+    const created = await ReportedParcel.create({
+      source: source || "Citizen Report",
+      geom: geometry,
+      report_id: reportId || null,
+    });
+
+    return res.status(201).json({
+      id: created.id,
+      report_id: created.report_id,
+      source: created.source,
+      detected_on: created.detected_on,
+      geometry: created.geom,
+    });
+  } catch (err) {
+    console.error("Error saving reported parcel:", err);
+    return res.status(500).json({ message: "Failed to save report" });
+  }
+});
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../../uploads/'));
+    cb(null, path.join(__dirname, "../../uploads/"));
   },
   filename: function (req, file, cb) {
     // Generate unique filename with timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Maximum 5 files
+    files: 5, // Maximum 5 files
   },
   fileFilter: function (req, file, cb) {
     // Allow images and videos
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype.startsWith("video/")
+    ) {
       cb(null, true);
     } else {
-      cb(new Error('Only image and video files are allowed'), false);
+      cb(new Error("Only image and video files are allowed"), false);
     }
-  }
+  },
 });
 
 // Get all reports (Admin/Enforcement only)
@@ -174,156 +254,164 @@ router.get("/:id", authMiddleware, async (req, res) => {
 });
 
 // Create new report (Citizen only)
-router.post("/", authMiddleware, allowRoles(["Citizen"]), upload.array('media', 5), async (req, res) => {
-  try {
-    // Parse report data from FormData
-    let parsedData;
+router.post(
+  "/",
+  authMiddleware,
+  allowRoles(["Citizen"]),
+  upload.array("media", 5),
+  async (req, res) => {
     try {
-      parsedData = JSON.parse(req.body.reportData);
-    } catch (error) {
-      return res.status(400).json({ message: "Invalid report data format." });
-    }
-
-    const {
-      fullName,
-      phone,
-      email,
-      description,
-      category,
-      date,
-      location,
-      title,
-    } = parsedData;
-
-    // Validation
-    if (
-      !fullName ||
-      !phone ||
-      !description ||
-      !category ||
-      !date ||
-      !location ||
-      !title
-    ) {
-      return res
-        .status(400)
-        .json({ message: "All required fields must be provided." });
-    }
-
-    // Parse and validate date
-    const observationDate = new Date(date);
-    if (isNaN(observationDate.getTime())) {
-      return res.status(400).json({ message: "Invalid date format." });
-    }
-
-    // Create report data
-    const finalReportData = {
-      reporter: {
-        userId: req.user.id,
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        email: email ? email.trim().toLowerCase() : undefined,
-      },
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      dateOfObservation: observationDate,
-      location: {
-        coordinates: {
-          type: "Point",
-          coordinates: [parseFloat(location.lng), parseFloat(location.lat)],
-        },
-        address: location.address || "",
-        area: location.area || "",
-      },
-      media: req.files ? req.files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        url: `/uploads/${file.filename}`,
-        uploadedAt: new Date()
-      })) : [],
-    };
-
-    // Save with retry on duplicate key for reportId only (extremely rare with UUID)
-    let report;
-    let lastDupIdError = null;
-    const maxAttempts = 5;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Parse report data from FormData
+      let parsedData;
       try {
-        report = new Report(finalReportData);
-        await report.save();
-        lastDupIdError = null;
-        break;
-      } catch (err) {
-        // Only retry when duplicate key is for reportId; otherwise bubble up
-        if (err && err.code === 11000) {
-          const isReportIdDup =
-            err.keyPattern?.reportId ||
-            String(err.message || "").includes("reportId");
-          if (isReportIdDup) {
-            lastDupIdError = err;
-            const backoffMs = 10 * Math.pow(2, attempt); // 10,20,40,80,160
-            await new Promise((resolve) => setTimeout(resolve, backoffMs));
-            continue;
-          }
-        }
-        throw err;
+        parsedData = JSON.parse(req.body.reportData);
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid report data format." });
       }
-    }
-    if (lastDupIdError) {
-      return res.status(503).json({
-        message: "Temporary ID generation conflict. Please try again.",
+
+      const {
+        fullName,
+        phone,
+        email,
+        description,
+        category,
+        date,
+        location,
+        title,
+      } = parsedData;
+
+      // Validation
+      if (
+        !fullName ||
+        !phone ||
+        !description ||
+        !category ||
+        !date ||
+        !location ||
+        !title
+      ) {
+        return res
+          .status(400)
+          .json({ message: "All required fields must be provided." });
+      }
+
+      // Parse and validate date
+      const observationDate = new Date(date);
+      if (isNaN(observationDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format." });
+      }
+
+      // Create report data
+      const finalReportData = {
+        reporter: {
+          userId: req.user.id,
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          email: email ? email.trim().toLowerCase() : undefined,
+        },
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        dateOfObservation: observationDate,
+        location: {
+          coordinates: {
+            type: "Point",
+            coordinates: [parseFloat(location.lng), parseFloat(location.lat)],
+          },
+          address: location.address || "",
+          area: location.area || "",
+        },
+        media: req.files
+          ? req.files.map((file) => ({
+              filename: file.filename,
+              originalName: file.originalname,
+              mimeType: file.mimetype,
+              size: file.size,
+              url: `/uploads/${file.filename}`,
+              uploadedAt: new Date(),
+            }))
+          : [],
+      };
+
+      // Save with retry on duplicate key for reportId only (extremely rare with UUID)
+      let report;
+      let lastDupIdError = null;
+      const maxAttempts = 5;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          report = new Report(finalReportData);
+          await report.save();
+          lastDupIdError = null;
+          break;
+        } catch (err) {
+          // Only retry when duplicate key is for reportId; otherwise bubble up
+          if (err && err.code === 11000) {
+            const isReportIdDup =
+              err.keyPattern?.reportId ||
+              String(err.message || "").includes("reportId");
+            if (isReportIdDup) {
+              lastDupIdError = err;
+              const backoffMs = 10 * Math.pow(2, attempt); // 10,20,40,80,160
+              await new Promise((resolve) => setTimeout(resolve, backoffMs));
+              continue;
+            }
+          }
+          throw err;
+        }
+      }
+      if (lastDupIdError) {
+        return res.status(503).json({
+          message: "Temporary ID generation conflict. Please try again.",
+        });
+      }
+
+      // Populate reporter info for response
+      await report.populate("reporter.userId", "name email");
+
+      // Emit real-time notification to admin and enforcement rooms
+      const populatedReport = await Report.findById(report._id)
+        .populate("reporter.userId", "name email")
+        .lean();
+
+      console.log("📢 Emitting newReport notification to admin room");
+      console.log("📢 Report data:", {
+        reportId: populatedReport.reportId,
+        title: populatedReport.title,
+        reporter: populatedReport.reporter?.fullName,
+        category: populatedReport.category,
+      });
+
+      // Emit to admin room
+      req.io.to("admin-room").emit("newReport", {
+        report: populatedReport,
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log("📢 Emitting newReport notification to enforcement room");
+
+      // Emit to enforcement room
+      req.io.to("enforcement-room").emit("newReport", {
+        report: populatedReport,
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log("📢 Notifications emitted successfully");
+
+      res.status(201).json({
+        success: true,
+        message: "Report submitted successfully",
+        data: { report },
+      });
+    } catch (error) {
+      console.error("Error creating report:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
       });
     }
-
-    // Populate reporter info for response
-    await report.populate("reporter.userId", "name email");
-
-    // Emit real-time notification to admin and enforcement rooms
-    const populatedReport = await Report.findById(report._id)
-      .populate("reporter.userId", "name email")
-      .lean();
-
-    console.log("📢 Emitting newReport notification to admin room");
-    console.log("📢 Report data:", {
-      reportId: populatedReport.reportId,
-      title: populatedReport.title,
-      reporter: populatedReport.reporter?.fullName,
-      category: populatedReport.category,
-    });
-
-    // Emit to admin room
-    req.io.to("admin-room").emit("newReport", {
-      report: populatedReport,
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log("📢 Emitting newReport notification to enforcement room");
-
-    // Emit to enforcement room
-    req.io.to("enforcement-room").emit("newReport", {
-      report: populatedReport,
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log("📢 Notifications emitted successfully");
-
-    res.status(201).json({
-      success: true,
-      message: "Report submitted successfully",
-      data: { report },
-    });
-  } catch (error) {
-    console.error("Error creating report:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
   }
-});
+);
 
 // Update report status (Admin/Enforcement only)
 router.put(
@@ -399,7 +487,10 @@ router.put(
           timestamp: new Date().toISOString(),
         });
       } catch (emitErr) {
-        console.warn("⚠️ Failed to emit reportStatusUpdated:", emitErr?.message || emitErr);
+        console.warn(
+          "⚠️ Failed to emit reportStatusUpdated:",
+          emitErr?.message || emitErr
+        );
       }
 
       res.json({
@@ -604,7 +695,10 @@ router.post(
       }
 
       // Check if user has permission to modify this report
-      if (req.user.role === "Citizen" && report.reporter.userId.toString() !== req.user.id) {
+      if (
+        req.user.role === "Citizen" &&
+        report.reporter.userId.toString() !== req.user.id
+      ) {
         return res.status(403).json({
           success: false,
           message: "You can only add media to your own reports",
@@ -612,13 +706,13 @@ router.post(
       }
 
       // Add new media files to the report
-      const newMedia = mediaFiles.map(file => ({
+      const newMedia = mediaFiles.map((file) => ({
         filename: file.filename,
         originalName: file.originalName,
         mimeType: file.mimeType,
         size: file.size,
         url: file.url,
-        uploadedAt: new Date()
+        uploadedAt: new Date(),
       }));
 
       report.media.push(...newMedia);
@@ -658,7 +752,10 @@ router.delete(
       }
 
       // Check if user has permission to delete this report
-      if (req.user.role === "Citizen" && report.reporter.userId.toString() !== req.user.id) {
+      if (
+        req.user.role === "Citizen" &&
+        report.reporter.userId.toString() !== req.user.id
+      ) {
         return res.status(403).json({
           success: false,
           message: "You can only delete your own reports",

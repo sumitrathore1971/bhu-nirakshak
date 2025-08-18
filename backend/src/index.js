@@ -10,6 +10,7 @@ import usersRoutes from "./routes/users.js";
 import drawingsRoutes from "./routes/drawings.js";
 import { Pool } from "pg";
 import { sequelize } from "./config/database.js";
+import ReportedParcel from "./models/ReportedParcel.js";
 import Drawing from "./models/Drawing.js";
 import Report from "./models/Report.js";
 import path from "path";
@@ -69,7 +70,7 @@ app.use(
 app.use(express.json());
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Make io available to routes via middleware
 app.use((req, res, next) => {
@@ -200,7 +201,14 @@ app.use("*", (req, res) => {
 // Initialize database and start server
 async function startServer() {
   try {
-    // Sync PostGIS database
+    // Ensure PostGIS extension and sync models
+    try {
+      await sequelize.query("CREATE EXTENSION IF NOT EXISTS postgis");
+      console.log("✅ PostGIS extension ensured");
+    } catch (e) {
+      console.warn("⚠️ Could not ensure PostGIS extension:", e?.message || e);
+    }
+
     await sequelize.sync({ alter: true });
     console.log("✅ PostGIS database synced successfully");
 

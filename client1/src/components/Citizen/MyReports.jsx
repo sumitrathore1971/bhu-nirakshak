@@ -61,18 +61,21 @@ export default function MyReports() {
         10,
         statusFilter
       );
-      
+
       // Debug logging
-      console.log('=== MyReports Debug ===');
-      console.log('API Response:', response);
-      
+      console.log("=== MyReports Debug ===");
+      console.log("API Response:", response);
+
       // Handle both new and old response formats
       const reports = response.reports || response.data?.reports || [];
       const totalPages = response.totalPages || response.data?.totalPages || 1;
 
-      console.log('Processed reports:', reports);
-      console.log('Reports with media:', reports.filter(r => r.media && r.media.length > 0).length);
-      
+      console.log("Processed reports:", reports);
+      console.log(
+        "Reports with media:",
+        reports.filter((r) => r.media && r.media.length > 0).length
+      );
+
       // Log each report with media
       reports.forEach((report, index) => {
         if (report.media && report.media.length > 0) {
@@ -80,7 +83,7 @@ export default function MyReports() {
             reportId: report.reportId,
             title: report.title,
             mediaCount: report.media.length,
-            media: report.media
+            media: report.media,
           });
         }
       });
@@ -125,21 +128,21 @@ export default function MyReports() {
     try {
       setDeleting(true);
       await reportService.deleteReport(reportId);
-      
+
       // Remove the deleted report from the list
-      setReports(reports.filter(report => report._id !== reportId));
+      setReports(reports.filter((report) => report._id !== reportId));
       setDeleteConfirm(null);
-      
+
       // Show success notification
       setNotification({
         message: "Report deleted successfully",
-        type: "success"
+        type: "success",
       });
     } catch (error) {
       console.error("Error deleting report:", error);
       setNotification({
         message: error.message || "Failed to delete report",
-        type: "error"
+        type: "error",
       });
     } finally {
       setDeleting(false);
@@ -185,8 +188,6 @@ export default function MyReports() {
         type={notification?.type}
         onClose={() => setNotification(null)}
       />
-
-      
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -256,7 +257,7 @@ export default function MyReports() {
                 <tr
                   key={report._id}
                   className={`hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors ${
-                    report.status !== 'Pending' ? 'opacity-75' : ''
+                    report.status !== "Pending" ? "opacity-75" : ""
                   }`}
                 >
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
@@ -295,7 +296,7 @@ export default function MyReports() {
                         onClick={() => setDeleteConfirm(report)}
                         className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={deleting}
-                        title={'Delete report'}
+                        title={"Delete report"}
                       >
                         <Trash2 size={16} /> Delete
                       </button>
@@ -361,7 +362,10 @@ export default function MyReports() {
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                  <Trash2 size={24} className="text-red-600 dark:text-red-400" />
+                  <Trash2
+                    size={24}
+                    className="text-red-600 dark:text-red-400"
+                  />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -387,7 +391,6 @@ export default function MyReports() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Status: {deleteConfirm.status}
                   </p>
-                  
                 </div>
               </div>
 

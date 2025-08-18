@@ -1,80 +1,241 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { X, Image as ImageIcon, FileText } from 'lucide-react';
-import { getStaticBaseUrl } from '../../lib/utils.js';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { motion } from "framer-motion";
+import { X, Image as ImageIcon, FileText } from "lucide-react";
+import { getStaticBaseUrl } from "../../lib/utils.js";
+import reportService from "../../services/reportService.js";
 
 export default function ReportDetailsModal({ open, onClose, report }) {
   if (!open || !report) return null;
 
   // Debug logging
-  console.log('ReportDetailsModal - Report data:', report);
-  console.log('ReportDetailsModal - Media array:', report.media);
+  console.log("ReportDetailsModal - Report data:", report);
+  console.log("ReportDetailsModal - Media array:", report.media);
 
   // Function to check if a file is an image
   const isImage = (mimeType) => {
-    return mimeType && mimeType.startsWith('image/');
+    return mimeType && mimeType.startsWith("image/");
   };
 
   // Function to get the full URL for media files
   const getMediaUrl = (mediaItem) => {
-    console.log('getMediaUrl - mediaItem:', mediaItem);
-    
+    console.log("getMediaUrl - mediaItem:", mediaItem);
+
     if (mediaItem.url) {
       // If it's already a full URL, use it as is
-      if (mediaItem.url.startsWith('http://') || mediaItem.url.startsWith('https://')) {
-        console.log('getMediaUrl - Full URL detected:', mediaItem.url);
+      if (
+        mediaItem.url.startsWith("http://") ||
+        mediaItem.url.startsWith("https://")
+      ) {
+        console.log("getMediaUrl - Full URL detected:", mediaItem.url);
         return mediaItem.url;
       }
       // If it's a relative path, construct the full URL
-      if (mediaItem.url.startsWith('/uploads/')) {
+      if (mediaItem.url.startsWith("/uploads/")) {
         const baseUrl = getStaticBaseUrl();
         const fullUrl = `${baseUrl}${mediaItem.url}`;
-        console.log('getMediaUrl - Constructed URL from relative path:', fullUrl);
+        console.log(
+          "getMediaUrl - Constructed URL from relative path:",
+          fullUrl
+        );
         return fullUrl;
       }
       // If it's just a filename, construct the uploads URL
       const baseUrl = getStaticBaseUrl();
       const fullUrl = `${baseUrl}/uploads/${mediaItem.filename}`;
-      console.log('getMediaUrl - Constructed URL from filename:', fullUrl);
+      console.log("getMediaUrl - Constructed URL from filename:", fullUrl);
       return fullUrl;
     }
-    console.log('getMediaUrl - No URL found, returning null');
+    console.log("getMediaUrl - No URL found, returning null");
     return null;
   };
 
+  function MiniMap({ geometry, color = "#3b82f6" }) {
+    const containerRef = useRef(null);
+    const mapRef = useRef(null);
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+
+    const bbox = useMemo(() => {
+      try {
+        const coords = geometry?.coordinates?.[0] || [];
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        coords.forEach(([x, y]) => {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        });
+        if (!isFinite(minX)) return null;
+        return [
+          [minX, minY],
+          [maxX, maxY],
+        ];
+      } catch {
+        return null;
+      }
+    }, [geometry]);
+
+    useEffect(() => {
+      if (!token || !containerRef.current || mapRef.current) return;
+      mapboxgl.accessToken = token;
+      const map = new mapboxgl.Map({
+        container: containerRef.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [75.8577, 22.7196],
+        zoom: 10,
+        interactive: false,
+      });
+      mapRef.current = map;
+
+      map.on("load", () => {
+        const id = `poly-${Math.random().toString(36).slice(2)}`;
+        map.addSource(id, {
+          type: "geojson",
+          data: { type: "Feature", geometry, properties: {} },
+        });
+        map.addLayer({
+          id: `${id}-fill`,
+          type: "fill",
+          source: id,
+          paint: { "fill-color": color, "fill-opacity": 0.35 },
+        });
+        map.addLayer({
+          id: `${id}-line`,
+          type: "line",
+          source: id,
+          paint: { "line-color": color, "line-width": 2 },
+        });
+
+        if (bbox) {
+          map.fitBounds(bbox, { padding: 10, duration: 0 });
+        }
+      });
+
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }, [token]);
+
+    if (!token) {
+      return (
+        <div className="w-full h-40 rounded-md overflow-hidden border border-gray-200 dark:border-neutral-800 grid place-items-center text-xs text-gray-600 dark:text-gray-400">
+          Set VITE_MAPBOX_TOKEN to view polygon map
+        </div>
+      );
+    }
+
+    return (
+      <div
+        ref={containerRef}
+        className="w-full h-40 rounded-md overflow-hidden border border-gray-200 dark:border-neutral-800"
+      />
+    );
+  }
+
+  const [geometry, setGeometry] = useState(null);
+  const [geomError, setGeomError] = useState("");
+  const [geomLoading, setGeomLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function loadGeometry() {
+      try {
+        setGeomLoading(true);
+        setGeomError("");
+        const fc = await reportService.getEncroachmentReportsGeoJSON(
+          report.reportId
+        );
+        const geom = fc?.features?.[0]?.geometry || null;
+        if (active) setGeometry(geom);
+      } catch (e) {
+        if (active) setGeomError(e?.message || "Failed to load geometry");
+      } finally {
+        if (active) setGeomLoading(false);
+      }
+    }
+    if (open && report?.reportId) {
+      loadGeometry();
+    } else {
+      setGeometry(null);
+    }
+    return () => {
+      active = false;
+    };
+  }, [open, report?.reportId]);
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">{report.reportId}</h3>
+            <h3 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">
+              {report.reportId}
+            </h3>
             <p className="text-gray-600 dark:text-gray-400">{report.title}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"><X size={20} className="text-gray-500 dark:text-gray-400"/></button>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+          >
+            <X size={20} className="text-gray-500 dark:text-gray-400" />
+          </button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Report Details */}
             <div className="space-y-4">
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Report Details</h4>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  Report Details
+                </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Category</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{report.category}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Category
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {report.category}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Status</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{report.status}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Status
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {report.status}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Date Observed</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Date Observed
+                    </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {new Date(report.dateOfObservation).toLocaleDateString()}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Submitted</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Submitted
+                    </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {new Date(report.createdAt).toLocaleDateString()}
                     </p>
@@ -83,60 +244,106 @@ export default function ReportDetailsModal({ open, onClose, report }) {
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Description</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Description
+                </p>
                 <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-neutral-800 p-3 rounded-lg">
                   {report.description}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Location</p>
-                <p className="text-sm text-gray-900 dark:text-white">
-                  {report.location?.area || report.formattedAddress || "Location coordinates"}
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Location
                 </p>
+                <p className="text-sm text-gray-900 dark:text-white">
+                  {report.location?.area ||
+                    report.formattedAddress ||
+                    "Location coordinates"}
+                </p>
+              </div>
+
+              {/* Polygon Mini Map */}
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Encroachment Area
+                </p>
+                {geomLoading ? (
+                  <div className="w-full h-40 rounded-md grid place-items-center text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-800">
+                    Loading map…
+                  </div>
+                ) : geometry ? (
+                  <MiniMap geometry={geometry} />
+                ) : geomError ? (
+                  <div className="text-xs text-red-600 dark:text-red-400">
+                    {geomError}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    No polygon submitted for this report
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Media Section */}
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Media Files</h4>
-              
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                Media Files
+              </h4>
+
               {report.media && report.media.length > 0 ? (
                 <div className="space-y-3">
                   {report.media.map((media, index) => {
                     const mediaUrl = getMediaUrl(media);
                     const isImageFile = isImage(media.mimeType);
-                    
+
                     console.log(`Media ${index}:`, {
                       media,
                       mediaUrl,
                       isImageFile,
-                      mimeType: media.mimeType
+                      mimeType: media.mimeType,
                     });
-                    
+
                     return (
-                      <div key={index} className="border border-gray-200 dark:border-neutral-700 rounded-lg p-3">
+                      <div
+                        key={index}
+                        className="border border-gray-200 dark:border-neutral-700 rounded-lg p-3"
+                      >
                         {isImageFile && mediaUrl ? (
                           <div className="space-y-2">
                             <img
                               src={mediaUrl}
                               alt={media.originalName}
                               className="w-full h-48 object-cover rounded-lg"
-                              onLoad={() => console.log(`Image loaded successfully: ${mediaUrl}`)}
+                              onLoad={() =>
+                                console.log(
+                                  `Image loaded successfully: ${mediaUrl}`
+                                )
+                              }
                               onError={(e) => {
-                                console.error(`Image failed to load: ${mediaUrl}`, e);
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
+                                console.error(
+                                  `Image failed to load: ${mediaUrl}`,
+                                  e
+                                );
+                                e.target.style.display = "none";
+                                e.target.nextSibling.style.display = "flex";
                               }}
                             />
                             <div className="hidden flex items-center justify-center h-48 bg-gray-100 dark:bg-neutral-800 rounded-lg">
                               <div className="text-center">
-                                <ImageIcon size={32} className="mx-auto text-gray-400 mb-2" />
-                                <p className="text-sm text-gray-500">Image not available</p>
+                                <ImageIcon
+                                  size={32}
+                                  className="mx-auto text-gray-400 mb-2"
+                                />
+                                <p className="text-sm text-gray-500">
+                                  Image not available
+                                </p>
                               </div>
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {media.originalName} • {(media.size / 1024 / 1024).toFixed(2)} MB
+                              {media.originalName} •{" "}
+                              {(media.size / 1024 / 1024).toFixed(2)} MB
                             </div>
                           </div>
                         ) : (
@@ -147,7 +354,8 @@ export default function ReportDetailsModal({ open, onClose, report }) {
                                 {media.originalName}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {(media.size / 1024 / 1024).toFixed(2)} MB • {media.mimeType}
+                                {(media.size / 1024 / 1024).toFixed(2)} MB •{" "}
+                                {media.mimeType}
                               </p>
                             </div>
                             {mediaUrl && (

@@ -1,15 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { MapboxStyleSwitcherControl } from "mapbox-gl-style-switcher";
 import "mapbox-gl-style-switcher/styles.css";
 import { addBoundaryToMap } from "../../lib/boundary";
 
-export default function MapSelector({ value, onChange }) {
+export default function MapSelector({ value, onChange, onPolygonChange }) {
   const [baseLayer, setBaseLayer] = useState("osm");
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const markerRef = useRef(null);
+  // Marker removed (no pin placement)
+  const drawRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const clickHandlerRef = useRef(null);
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
 
   const center = useMemo(
@@ -54,17 +59,68 @@ export default function MapSelector({ value, onChange }) {
     ];
     map.addControl(new MapboxStyleSwitcherControl(styles), "top-left");
 
-    map.on("click", (e) => {
+    // Mapbox Draw (Polygon only)
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: { polygon: true, trash: true },
+      defaultMode: "draw_polygon",
+    });
+    drawRef.current = draw;
+    map.addControl(draw, "top-left");
+
+    // Start in drawing state because defaultMode is draw_polygon
+    isDrawingRef.current = true;
+
+    // Track draw mode to avoid interfering clicks while drawing
+    map.on("draw.modechange", (e) => {
+      const mode = e?.mode || "";
+      // Only allow clicks to place marker in simple_select/static
+      isDrawingRef.current = !(mode === "simple_select" || mode === "static");
+    });
+
+    const handleMapClick = (e) => {
+      // No-op: pin placement removed
+      if (isDrawingRef.current) return;
       const lng = e.lngLat.lng;
       const lat = e.lngLat.lat;
-      if (typeof onChange === "function") onChange({ ...(value || {}), lat, lng });
-      if (!markerRef.current) {
-        markerRef.current = new mapboxgl.Marker()
-          .setLngLat([lng, lat])
-          .addTo(map);
-      } else {
-        markerRef.current.setLngLat([lng, lat]);
-      }
+      if (typeof onChange === "function")
+        onChange({ ...(value || {}), lat, lng });
+    };
+    clickHandlerRef.current = handleMapClick;
+    // Do not attach click while drawing (default mode). It will be attached later when mode switches
+    if (!isDrawingRef.current) {
+      map.on("click", handleMapClick);
+    }
+
+    function emitPolygon() {
+      if (!onPolygonChange) return;
+      const fc = draw.getAll();
+      const first = fc.features?.find((f) => f.geometry?.type === "Polygon");
+      onPolygonChange(first ? first.geometry : null);
+    }
+    map.on("draw.create", (e) => {
+      emitPolygon();
+      // After creating a polygon, switch to simple_select so clicks can place marker again
+      try {
+        draw.changeMode("simple_select");
+      } catch {}
+    });
+    map.on("draw.update", emitPolygon);
+    map.on("draw.delete", emitPolygon);
+
+    // Mode change: toggle click handler
+    map.on("draw.modechange", (e) => {
+      const mode = e?.mode || "";
+      const drawing = !(mode === "simple_select" || mode === "static");
+      isDrawingRef.current = drawing;
+      try {
+        if (drawing) {
+          if (clickHandlerRef.current)
+            map.off("click", clickHandlerRef.current);
+        } else {
+          if (clickHandlerRef.current) map.on("click", clickHandlerRef.current);
+        }
+      } catch {}
     });
 
     map.on("load", async () => {
@@ -84,27 +140,29 @@ export default function MapSelector({ value, onChange }) {
     });
 
     return () => {
-      if (markerRef.current) {
-        markerRef.current.remove();
-        markerRef.current = null;
+      // No marker cleanup needed
+      if (map && drawRef.current) {
+        try {
+          map.removeControl(drawRef.current);
+        } catch {}
+        drawRef.current = null;
+      }
+      if (map && clickHandlerRef.current) {
+        try {
+          map.off("click", clickHandlerRef.current);
+        } catch {}
+        clickHandlerRef.current = null;
       }
       map.remove();
       mapRef.current = null;
     };
   }, [token]);
 
-  // Respond to external value changes by moving marker and recentering
+  // Respond to external value changes by recentering only (no marker)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (value?.lat && value?.lng) {
-      if (!markerRef.current) {
-        markerRef.current = new mapboxgl.Marker()
-          .setLngLat([value.lng, value.lat])
-          .addTo(map);
-      } else {
-        markerRef.current.setLngLat([value.lng, value.lat]);
-      }
       map.flyTo({
         center: [value.lng, value.lat],
         zoom: Math.max(map.getZoom(), 13),
@@ -131,14 +189,18 @@ export default function MapSelector({ value, onChange }) {
           <button
             type="button"
             onClick={() => setBaseLayer("osm")}
-            className={`px-3 py-1 rounded ${baseLayer === "osm" ? "bg-gray-100" : ""}`}
+            className={`px-3 py-1 rounded ${
+              baseLayer === "osm" ? "bg-gray-100" : ""
+            }`}
           >
             Map
           </button>
           <button
             type="button"
             onClick={() => setBaseLayer("satellite")}
-            className={`px-3 py-1 rounded ${baseLayer === "satellite" ? "bg-gray-100" : ""}`}
+            className={`px-3 py-1 rounded ${
+              baseLayer === "satellite" ? "bg-gray-100" : ""
+            }`}
           >
             Satellite
           </button>
