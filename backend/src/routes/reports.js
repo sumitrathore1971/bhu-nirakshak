@@ -672,15 +672,7 @@ router.delete(
             message: "You can only delete your own reports",
           });
         }
-
-        // Optional business rule: Only allow citizen to delete rejected reports
-        // If you want to allow deleting only when status is Rejected, keep this block; otherwise remove it
-        if (report.status && report.status !== "Rejected") {
-          return res.status(400).json({
-            success: false,
-            message: "Only rejected reports can be deleted by the citizen.",
-          });
-        }
+        // Citizen can delete their own reports regardless of status
       }
 
       // Soft delete by setting isActive to false

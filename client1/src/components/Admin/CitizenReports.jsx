@@ -7,7 +7,6 @@ import {
   Eye,
   MapPin,
   Calendar,
-  User,
   FileText,
   CheckCircle,
   AlertTriangle,
@@ -174,6 +173,26 @@ export default function CitizenReports() {
     }
   };
 
+  const getLongitude = (rep) => {
+    try {
+      const coords = rep?.location?.coordinates?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2) return coords[0];
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getLatitude = (rep) => {
+    try {
+      const coords = rep?.location?.coordinates?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2) return coords[1];
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-IN", {
       year: "numeric",
@@ -213,6 +232,35 @@ export default function CitizenReports() {
     } catch (err) {
       console.error("Error verifying report:", err);
       setError(err.message || "Failed to verify report");
+    } finally {
+      setUpdatingReportId(null);
+    }
+  };
+
+  const handleAssignToEnforcement = async (report) => {
+    if (!report?._id) return;
+    try {
+      setUpdatingReportId(report._id);
+      // Update status to Action Taken via backend (emits real-time event to citizen)
+      await reportService.updateReportStatus(report._id, "Action Taken");
+      // Optimistically update the local list
+      setReports((prev) =>
+        prev.map((r) => (r._id === report._id ? { ...r, status: "Action Taken" } : r))
+      );
+      // Reflect in selected modal if open
+      setSelected((prev) => (prev && prev._id === report._id ? { ...prev, status: "Action Taken" } : prev));
+
+      // Emit assignment notification to enforcement via socket (for their panel)
+      try {
+        socketService.connect();
+        const eventData = { report, timestamp: Date.now() };
+        socketService.socket.emit("assignToEnforcement", eventData);
+      } catch (e) {
+        console.warn("Failed to emit assignToEnforcement:", e?.message || e);
+      }
+    } catch (err) {
+      console.error("Error assigning to enforcement:", err);
+      setError(err.message || "Failed to assign to enforcement");
     } finally {
       setUpdatingReportId(null);
     }
@@ -338,9 +386,7 @@ export default function CitizenReports() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Submitted By
-                    </th>
+                    
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Status
                     </th>
@@ -359,9 +405,20 @@ export default function CitizenReports() {
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-xs truncate">
                         {report.title}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                        <MapPin size={16} className="text-gray-400" />
-                        {report.location?.area || "N/A"}
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                        <div className="flex items-start gap-2">
+                          <MapPin size={16} className="mt-0.5 text-gray-400" />
+                          <div className="flex flex-col">
+                            {Number.isFinite(getLongitude(report)) && Number.isFinite(getLatitude(report)) ? (
+                              <>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Lng: {getLongitude(report)}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Lat: {getLatitude(report)}</span>
+                              </>
+                            ) : (
+                              <span>—</span>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                         {report.category}
@@ -369,10 +426,7 @@ export default function CitizenReports() {
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                         {formatDate(report.dateOfObservation)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                        <User size={16} className="text-gray-400" />
-                        {report.reporter?.fullName || "Anonymous"}
-                      </td>
+                      
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
@@ -520,12 +574,35 @@ export default function CitizenReports() {
                             {selected.title}
                           </span>
                         </div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-gray-600 dark:text-gray-400 mr-4">
+                            Description:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium text-sm text-right break-words max-w-[60%]">
+                            {selected.description}
+                          </span>
+                        </div>
                         <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Category:
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {selected.category}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-start">
                           <span className="text-gray-600 dark:text-gray-400">
                             Location:
                           </span>
-                          <span className="text-gray-900 dark:text-white font-medium">
-                            {selected.location?.area || "N/A"}
+                          <span className="text-right">
+                            {Number.isFinite(getLongitude(selected)) && Number.isFinite(getLatitude(selected)) ? (
+                              <>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400">Lng: {getLongitude(selected)}</span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400">Lat: {getLatitude(selected)}</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-900 dark:text-white font-medium">—</span>
+                            )}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -540,14 +617,7 @@ export default function CitizenReports() {
                             {selected.status}
                           </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">
-                            Submitted By:
-                          </span>
-                          <span className="text-gray-900 dark:text-white font-medium">
-                            {selected.reporter?.fullName || "Anonymous"}
-                          </span>
-                        </div>
+                        
                         <div className="flex justify-between">
                           <span className="text-gray-600 dark:text-gray-400">
                             Date:
@@ -566,14 +636,7 @@ export default function CitizenReports() {
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                        Description
-                      </h3>
-                      <p className="text-gray-700 dark:text-gray-300">
-                        {selected.description}
-                      </p>
-                    </div>
+                    <div></div>
                   </div>
                 </div>
               )}
@@ -715,27 +778,9 @@ export default function CitizenReports() {
                   disabled={updatingReportId === selected?._id || selected?.status === 'Rejected'}
                   className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
-                    if (selected) {
-                      console.log(
-                        "🔔 Admin clicking Assign to Enforcement for report:",
-                        selected
-                      );
-                      socketService.connect();
-                      const eventData = {
-                        report: selected,
-                        timestamp: Date.now(),
-                      };
-                      console.log(
-                        "🔔 Emitting assignToEnforcement event with data:",
-                        eventData
-                      );
-                      socketService.socket.emit(
-                        "assignToEnforcement",
-                        eventData
-                      );
-                      console.log("🔔 Event emitted successfully");
-                      setSelected(null); // Close modal
-                    }
+                    if (!selected) return;
+                    await handleAssignToEnforcement(selected);
+                    setSelected(null);
                   }}
                 >
                   Assign to Enforcement
