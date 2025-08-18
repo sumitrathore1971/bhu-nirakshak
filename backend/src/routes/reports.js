@@ -657,12 +657,30 @@ router.delete(
         });
       }
 
-      // Check if user has permission to delete this report
-      if (req.user.role === "Citizen" && report.reporter.userId.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: "You can only delete your own reports",
-        });
+      // Check if user has permission to delete this report (citizen can delete own report only)
+      if (req.user.role === "Citizen") {
+        const reporterUserId = report?.reporter?.userId;
+        if (!reporterUserId) {
+          return res.status(403).json({
+            success: false,
+            message: "Access denied. Report owner info unavailable.",
+          });
+        }
+        if (reporterUserId.toString() !== req.user.id) {
+          return res.status(403).json({
+            success: false,
+            message: "You can only delete your own reports",
+          });
+        }
+
+        // Optional business rule: Only allow citizen to delete rejected reports
+        // If you want to allow deleting only when status is Rejected, keep this block; otherwise remove it
+        if (report.status && report.status !== "Rejected") {
+          return res.status(400).json({
+            success: false,
+            message: "Only rejected reports can be deleted by the citizen.",
+          });
+        }
       }
 
       // Soft delete by setting isActive to false

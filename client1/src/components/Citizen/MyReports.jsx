@@ -95,6 +95,30 @@ export default function MyReports() {
     }
   }
 
+  function getLongitude(report) {
+    try {
+      const coords = report?.location?.coordinates?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2) {
+        return coords[0];
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getLatitude(report) {
+    try {
+      const coords = report?.location?.coordinates?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2) {
+        return coords[1];
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString("en-IN", {
       year: "numeric",
@@ -127,7 +151,7 @@ export default function MyReports() {
       await reportService.deleteReport(reportId);
       
       // Remove the deleted report from the list
-      setReports(reports.filter(report => report._id !== reportId));
+      setReports((prev) => prev.filter((report) => report._id !== reportId));
       setDeleteConfirm(null);
       
       // Show success notification
@@ -138,7 +162,7 @@ export default function MyReports() {
     } catch (error) {
       console.error("Error deleting report:", error);
       setNotification({
-        message: error.message || "Failed to delete report",
+        message: error?.message || error?.response?.data?.message || "Failed to delete report",
         type: "error"
       });
     } finally {
@@ -255,9 +279,7 @@ export default function MyReports() {
               reports.map((report) => (
                 <tr
                   key={report._id}
-                  className={`hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors ${
-                    report.status !== 'Pending' ? 'opacity-75' : ''
-                  }`}
+                  className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
                 >
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                     {report.reportId}
@@ -268,11 +290,20 @@ export default function MyReports() {
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                     {formatDate(report.createdAt)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                    <MapPin size={16} className="text-gray-400" />
-                    {report.location.area ||
-                      report.formattedAddress ||
-                      "Location"}
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={16} className="mt-0.5 text-gray-400" />
+                      <div className="flex flex-col">
+                        {Number.isFinite(getLongitude(report)) && Number.isFinite(getLatitude(report)) ? (
+                          <>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Lng: {getLongitude(report)}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Lat: {getLatitude(report)}</span>
+                          </>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span

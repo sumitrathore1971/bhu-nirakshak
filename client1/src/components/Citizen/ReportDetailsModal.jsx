@@ -10,6 +10,27 @@ export default function ReportDetailsModal({ open, onClose, report }) {
   console.log('ReportDetailsModal - Report data:', report);
   console.log('ReportDetailsModal - Media array:', report.media);
 
+  // Helpers to extract coordinates
+  const getLongitude = (rep) => {
+    try {
+      const coords = rep?.location?.coordinates?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2) return coords[0];
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getLatitude = (rep) => {
+    try {
+      const coords = rep?.location?.coordinates?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2) return coords[1];
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   // Function to check if a file is an image
   const isImage = (mimeType) => {
     return mimeType && mimeType.startsWith('image/');
@@ -79,6 +100,18 @@ export default function ReportDetailsModal({ open, onClose, report }) {
                       {new Date(report.createdAt).toLocaleDateString()}
                     </p>
                   </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Address</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                      {report?.location?.address || report?.formattedAddress || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Area</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                      {report?.location?.area || '—'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -91,9 +124,16 @@ export default function ReportDetailsModal({ open, onClose, report }) {
 
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Location</p>
-                <p className="text-sm text-gray-900 dark:text-white">
-                  {report.location?.area || report.formattedAddress || "Location coordinates"}
-                </p>
+                <div className="text-sm text-gray-900 dark:text-white">
+                  {Number.isFinite(getLongitude(report)) && Number.isFinite(getLatitude(report)) ? (
+                    <>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Lng: {getLongitude(report)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Lat: {getLatitude(report)}</p>
+                    </>
+                  ) : (
+                    <p>—</p>
+                  )}
+                </div>
               </div>
             </div>
 
