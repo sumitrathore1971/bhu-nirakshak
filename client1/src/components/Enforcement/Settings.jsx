@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -10,8 +10,10 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function Settings() {
+  const { user, showFlashMessage } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [notifications, setNotifications] = useState({
     email: true,
@@ -22,6 +24,12 @@ export default function Settings() {
     systemMaintenance: false
   });
 
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    department: 'IMC Staff'
+  });
   const [mapSettings, setMapSettings] = useState({
     defaultZoom: 15,
     showRiskZones: true,
@@ -29,14 +37,34 @@ export default function Settings() {
     showDronePaths: false,
     autoRefresh: true
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'map', label: 'Map Settings', icon: MapPin },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'data', label: 'Data & Export', icon: Database }
-  ];
+  // Load user data when component mounts
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        department: 'IMC Staff' // Default value since department is not in user model
+      });
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      // Here you would typically call an API to update the user profile
+      // For now, we'll just show a success message
+      showFlashMessage('Profile updated successfully!', 'success');
+      setIsEditing(false);
+    } catch (error) {
+      showFlashMessage('Failed to update profile', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleNotificationChange = (key) => {
     setNotifications(prev => ({
@@ -52,6 +80,14 @@ export default function Settings() {
     }));
   };
 
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'map', label: 'Map Settings', icon: MapPin },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'data', label: 'Data & Export', icon: Database }
+  ];
+
   return (
     <div className="p-6 space-y-6 bg-gray-50 dark:bg-neutral-950 min-h-screen">
       {/* Page Header */}
@@ -64,11 +100,6 @@ export default function Settings() {
           <h1 className="text-3xl font-heading font-bold text-gray-900 dark:text-white">Settings</h1>
           <p className="text-gray-600 dark:text-gray-400">Configure your enforcement portal preferences</p>
         </div>
-        
-        <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center space-x-2 shadow-md">
-          <Save size={16} />
-          <span>Save Changes</span>
-        </button>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -110,15 +141,52 @@ export default function Settings() {
             {/* Profile Settings */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">Profile Information</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-heading font-semibold text-gray-900 dark:text-white">Profile Information</h2>
+                  {!isEditing ? (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                    >
+                      Edit Profile
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setIsEditing(false);
+                          // Reset to original values
+                          setProfileData({
+                            name: user?.name || '',
+                            email: user?.email || '',
+                            phone: user?.phone || '',
+                            department: 'IMC Staff'
+                          });
+                        }}
+                        className="px-4 py-2 border border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50"
+                      >
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
                     <input
                       type="text"
-                      defaultValue="John Doe"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+                      value={profileData.name}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   
@@ -126,8 +194,10 @@ export default function Settings() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
                     <input
                       type="email"
-                      defaultValue="john.doe@imc.gov.in"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+                      value={profileData.email}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   
@@ -135,14 +205,21 @@ export default function Settings() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone</label>
                     <input
                       type="tel"
-                      defaultValue="+91 98765 43210"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Department</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white">
+                    <select 
+                      value={profileData.department}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, department: e.target.value }))}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-neutral-900 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       <option>IMC Staff</option>
                       <option>Town Planning</option>
                       <option>Revenue</option>

@@ -1,8 +1,9 @@
-export default function DepartmentPanelPage(){
+import UrbanDevelopmentDashboard from "../../components/Department/UrbanDevelopmentDashboard.jsx";
 
+export default function DepartmentPanelPage(){
     return(
         <>
-        <h1>DepartmentPanelPage</h1>
+            <UrbanDevelopmentDashboard />
         </>
     )
 }

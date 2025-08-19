@@ -29,6 +29,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 const statusColors = {
   Pending:
     "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400",
+  "Assigned to Enforcement":
+    "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-400",
   "In Progress":
     "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400",
   Verified: "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400",
@@ -162,9 +164,28 @@ export default function CaseManagement() {
         console.warn("localStorage not available:", localStorageError);
         setCases([]);
       }
-      // TODO: Replace with actual API endpoint for fetching enforcement cases
-      // For now, we'll rely on real-time socket data and localStorage
-      console.log("📋 Fetching assigned reports for enforcement");
+      // Fetch latest statuses from backend and merge into current cases as a fallback to sockets
+      console.log("📋 Fetching latest reports to sync statuses for enforcement");
+      try {
+        const resp = await reportService.getAllReports(1, 100, {});
+        const reports = resp.data?.reports || resp.reports || [];
+        const idToStatus = new Map(
+          reports.map((r) => [r._id, r.status])
+        );
+        setCases((prev) => {
+          const updated = prev.map((c) => {
+            const backendId = c.backendId || c.originalReport?._id;
+            if (backendId && idToStatus.has(backendId)) {
+              return { ...c, status: idToStatus.get(backendId) };
+            }
+            return c;
+          });
+          saveCasesToStorage(updated);
+          return updated;
+        });
+      } catch (syncErr) {
+        console.warn("Failed to sync statuses from backend:", syncErr);
+      }
     } catch (error) {
       console.error("Error fetching assigned reports:", error);
       showFlashMessage("Failed to fetch assigned reports", "error");
@@ -201,7 +222,7 @@ export default function CaseManagement() {
       submittedBy:
         reportData.reporter?.fullName || reportData.submittedBy || "Citizen",
       riskScore: reportData.riskScore || Math.floor(Math.random() * 30) + 70, // Default risk score
-      status: "Pending", // Default status for new assignments
+      status: reportData.status || "Assigned to Enforcement",
       date: new Date(reportData.createdAt || reportData.timestamp || Date.now())
         .toISOString()
         .split("T")[0],
@@ -430,6 +451,49 @@ export default function CaseManagement() {
     return (rawMedia || []).map(normalizeMediaItem).filter(Boolean);
   };
 
+  // Persist status update to backend so other portals reflect the change
+  const persistCaseStatus = async (caseItem, newStatus) => {
+    try {
+      const backendId =
+        caseItem?.backendId || caseItem?.originalReport?._id || caseItem?.id;
+      if (!backendId) throw new Error("Missing backend report ID");
+      await reportService.updateReportStatus(backendId, newStatus);
+      updateCaseStatus(caseItem.id, newStatus);
+      showFlashMessage(
+        `Case ${caseItem.id} status updated to ${newStatus}`,
+        "success"
+      );
+      return true;
+    } catch (e) {
+      console.error("Failed to persist status:", e);
+      showFlashMessage(
+        e?.message || "Failed to update status. Please try again.",
+        "error"
+      );
+      return false;
+    }
+  };
+
+  // Helper to get coordinates (lng, lat) when available on the original report
+  const getCoordinatesPair = (caseItem) => {
+    try {
+      const coords =
+        caseItem?.originalReport?.location?.coordinates?.coordinates;
+      if (
+        Array.isArray(coords) &&
+        coords.length === 2 &&
+        Number.isFinite(coords[0]) &&
+        Number.isFinite(coords[1])
+      ) {
+        const [lng, lat] = coords;
+        return { lng, lat };
+      }
+    } catch (_) {
+      // ignore parse errors and fall back to address
+    }
+    return null;
+  };
+
   useEffect(() => {
     // Fetch existing assigned reports
     fetchAssignedReports();
@@ -464,6 +528,40 @@ export default function CaseManagement() {
       }
     };
 
+    // Listen for backend status updates and reflect in enforcement list
+    const handleStatusUpdate = (payload) => {
+      const { reportId, status, data } = payload || {};
+      // Try match by backend _id first, then by reportId fallback
+      setCases((prev) =>
+        prev.map((c) =>
+          c.backendId === reportId ||
+          c.originalReport?._id === reportId ||
+          (data?.report?.reportId && c.id === data.report.reportId)
+            ? { ...c, status: status || data?.report?.status || c.status }
+            : c
+        )
+      );
+      if ((status || data?.report?.status) === "Closed") {
+        try {
+          setShowClosedCases(true);
+        } catch (_) {}
+      }
+      // Persist to localStorage so reload keeps latest
+      setTimeout(() => {
+        try {
+          const updated = JSON.parse(localStorage.getItem("enforcementCases") || "[]");
+          const merged = updated.map((c) =>
+            c.backendId === reportId ||
+            c.originalReport?._id === reportId ||
+            (data?.report?.reportId && c.id === data.report.reportId)
+              ? { ...c, status: status || data?.report?.status || c.status }
+              : c
+          );
+          localStorage.setItem("enforcementCases", JSON.stringify(merged));
+        } catch (_) {}
+      }, 0);
+    };
+
     // Ensure socket is connected before setting up listener
     const setupSocketListener = () => {
       try {
@@ -483,6 +581,11 @@ export default function CaseManagement() {
     };
 
     setupSocketListener();
+    // Join room and attach status updates
+    try {
+      socketService.joinEnforcementRoom();
+      socketService.onReportStatusUpdated(handleStatusUpdate);
+    } catch (_) {}
 
     return () => {
       try {
@@ -493,6 +596,9 @@ export default function CaseManagement() {
             handleAssignToEnforcement
           );
         }
+        try {
+          socketService.offReportStatusUpdated(handleStatusUpdate);
+        } catch (_) {}
       } catch (error) {
         console.warn("Error cleaning up socket listener:", error);
       }
@@ -918,7 +1024,7 @@ export default function CaseManagement() {
                     Case ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Address
+                    Location (Lng, Lat)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Violation Type
@@ -985,14 +1091,20 @@ export default function CaseManagement() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <MapPin size={16} className="text-gray-400" />
-                          <span className="text-sm text-gray-900 dark:text-white">
-                            {caseItem.location}
-                          </span>
-                          {caseItem.isUrgent && (
-                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400">
-                              Urgent
-                            </span>
-                          )}
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            {(() => {
+                              const pair = getCoordinatesPair(caseItem);
+                              if (pair) {
+                                return (
+                                  <div className="leading-tight">
+                                    <div>Lng: {pair.lng.toFixed(6)}</div>
+                                    <div>Lat: {pair.lat.toFixed(6)}</div>
+                                  </div>
+                                );
+                              }
+                              return <span>{caseItem.location}</span>;
+                            })()}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1054,24 +1166,6 @@ export default function CaseManagement() {
                             <Eye size={16} className="mr-1" />
                             View Details
                           </button>
-                          {caseItem.status === "Pending" && (
-                            <button
-                              onClick={() => startWorkingOnCase(caseItem.id)}
-                              className="inline-flex items-center px-3 py-2 border border-orange-300 text-sm leading-4 font-medium rounded-lg text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
-                            >
-                              <CheckCircle size={16} className="mr-1" />
-                              Start
-                            </button>
-                          )}
-                          {!caseItem.isUrgent && (
-                            <button
-                              onClick={() => markCaseAsUrgent(caseItem.id)}
-                              className="inline-flex items-center px-3 py-2 border border-red-300 text-sm leading-4 font-medium rounded-lg text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                            >
-                              <AlertTriangle size={16} className="mr-1" />
-                              Urgent
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1481,22 +1575,11 @@ export default function CaseManagement() {
                 {/* Modal Footer */}
                 <div className="p-6 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-800">
                   <div className="flex items-center justify-end space-x-3">
-                    {selectedCase.status === "Pending" && (
-                      <button
-                        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                        onClick={() => {
-                          startWorkingOnCase(selectedCase.id);
-                          closeModal();
-                        }}
-                      >
-                        Start Working
-                      </button>
-                    )}
                     {selectedCase.status === "In Progress" && (
                       <button
                         className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
-                        onClick={() => {
-                          updateCaseStatus(selectedCase.id, "Verified");
+                        onClick={async () => {
+                          await persistCaseStatus(selectedCase, "Verified");
                           closeModal();
                         }}
                       >
@@ -1505,8 +1588,8 @@ export default function CaseManagement() {
                     )}
                     <button
                       className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
-                      onClick={() => {
-                        updateCaseStatus(selectedCase.id, "Action Taken");
+                      onClick={async () => {
+                        await persistCaseStatus(selectedCase, "Action Taken");
                         closeModal();
                       }}
                     >
@@ -1514,15 +1597,18 @@ export default function CaseManagement() {
                     </button>
                     <button
                       className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Are you sure you want to close case "${selectedCase.id}"? This action cannot be undone.`
-                          )
-                        ) {
-                          removeCase(selectedCase.id);
-                          closeModal();
+                      onClick={async () => {
+                        const proceed = window.confirm(
+                          `Are you sure you want to close case "${selectedCase.id}"? This will mark the report as Closed.`
+                        );
+                        if (!proceed) return;
+                        const ok = await persistCaseStatus(selectedCase, "Closed");
+                        if (ok) {
+                          try {
+                            setShowClosedCases(true);
+                          } catch (_) {}
                         }
+                        closeModal();
                       }}
                     >
                       Close Case

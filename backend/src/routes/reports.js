@@ -586,8 +586,33 @@ router.put(
 
       report.assignedTo = assignedTo;
       report.assignedAt = new Date();
+      // Update status to Assigned to Enforcement when assignment happens
+      report.status = "Assigned to Enforcement";
       await report.save();
       await report.populate("assignedTo", "name email");
+
+      // Emit status update to citizen, admin, and enforcement rooms
+      try {
+        const userRoom = `user-${report.reporter.userId}`;
+        req.io.to(userRoom).emit("reportStatusUpdated", {
+          reportId: report._id,
+          status: report.status,
+          data: { report },
+          timestamp: new Date().toISOString(),
+        });
+        req.io.to("admin-room").emit("reportStatusUpdated", {
+          reportId: report._id,
+          status: report.status,
+          data: { report },
+          timestamp: new Date().toISOString(),
+        });
+        req.io.to("enforcement-room").emit("reportStatusUpdated", {
+          reportId: report._id,
+          status: report.status,
+          data: { report },
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_) {}
 
       res.json({
         success: true,
@@ -660,6 +685,67 @@ router.get(
       });
     } catch (error) {
       console.error("Error fetching report statistics:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Get status time-series (Admin/Enforcement only)
+router.get(
+  "/stats/timeseries",
+  authMiddleware,
+  allowRoles(["Admin", "Enforcement"]),
+  async (req, res) => {
+    try {
+      const days = Math.max(parseInt(req.query.days || "30", 10), 1);
+      const now = new Date();
+      const startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setDate(startDate.getDate() - (days - 1));
+
+      // Helper to build counts by YYYY-MM-DD for a given date field
+      const buildCounts = async (dateField) => {
+        const match = {};
+        match[dateField] = { $gte: startDate };
+
+        const docs = await Report.find(match, { [dateField]: 1 }).lean();
+        const counts = new Map();
+        for (const d of docs) {
+          const dt = d[dateField];
+          if (!dt) continue;
+          const key = new Date(dt).toISOString().slice(0, 10);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        return counts;
+      };
+
+      const [verifiedMap, actionTakenMap, closedMap] = await Promise.all([
+        buildCounts("verifiedAt"),
+        buildCounts("actionTakenAt"),
+        buildCounts("closedAt"),
+      ]);
+
+      // Build continuous date range
+      const series = [];
+      for (let i = 0; i < days; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        series.push({
+          date: key,
+          verified: verifiedMap.get(key) || 0,
+          actionTaken: actionTakenMap.get(key) || 0,
+          closed: closedMap.get(key) || 0,
+        });
+      }
+
+      res.json({ success: true, data: { days, startDate: startDate.toISOString(), series } });
+    } catch (error) {
+      console.error("Error fetching time-series statistics:", error);
       res.status(500).json({
         success: false,
         message: "Server error",

@@ -56,7 +56,7 @@ export default function Dashboard() {
         reportData.violationType ||
         "Illegal Construction",
       riskScore: reportData.riskScore || Math.floor(Math.random() * 30) + 70,
-      status: "Pending", // Default status for new assignments
+      status: reportData.status || "Assigned to Enforcement",
       submittedBy:
         reportData.reporter?.fullName || reportData.submittedBy || "Citizen",
       date: new Date(reportData.createdAt || reportData.timestamp || Date.now())
@@ -94,6 +94,29 @@ export default function Dashboard() {
       console.warn("Error loading cases from localStorage:", error);
       setCases([]);
     }
+    // Also fetch statuses from backend to ensure stale localStorage gets updated
+    (async () => {
+      try {
+        const resp = await reportService.getAllReports(1, 100, {});
+        const reports = resp.data?.reports || resp.reports || [];
+        const idToStatus = new Map(reports.map((r) => [r._id, r.status]));
+        setCases((prev) => {
+          const updated = prev.map((c) => {
+            const backendId = c.originalReport?._id;
+            if (backendId && idToStatus.has(backendId)) {
+              return { ...c, status: idToStatus.get(backendId) };
+            }
+            return c;
+          });
+          try {
+            localStorage.setItem("enforcementCases", JSON.stringify(updated));
+          } catch (_) {}
+          return updated;
+        });
+      } catch (e) {
+        console.warn("Dashboard status sync failed:", e);
+      }
+    })();
   }, []);
 
   // Update map markers when cases change
@@ -132,6 +155,29 @@ export default function Dashboard() {
       }
     };
 
+    const handleStatusUpdate = (payload) => {
+      const { reportId, status, data } = payload || {};
+      setCases((prev) =>
+        prev.map((c) =>
+          c.originalReport?._id === reportId ||
+          (data?.report?.reportId && c.id === data.report.reportId)
+            ? { ...c, status: status || data?.report?.status || c.status }
+            : c
+        )
+      );
+      // Update localStorage snapshot
+      try {
+        const snapshot = JSON.parse(localStorage.getItem("enforcementCases") || "[]");
+        const merged = snapshot.map((c) =>
+          c.originalReport?._id === reportId ||
+          (data?.report?.reportId && c.id === data.report.reportId)
+            ? { ...c, status: status || data?.report?.status || c.status }
+            : c
+        );
+        localStorage.setItem("enforcementCases", JSON.stringify(merged));
+      } catch (_) {}
+    };
+
     try {
       if (socketService.socket) {
         socketService.socket.on(
@@ -139,6 +185,9 @@ export default function Dashboard() {
           handleAssignToEnforcement
         );
       }
+      try {
+        socketService.onReportStatusUpdated(handleStatusUpdate);
+      } catch (_) {}
     } catch (error) {
       console.warn("Error setting up socket listener in Dashboard:", error);
     }
@@ -151,6 +200,9 @@ export default function Dashboard() {
             handleAssignToEnforcement
           );
         }
+        try {
+          socketService.offReportStatusUpdated(handleStatusUpdate);
+        } catch (_) {}
       } catch (error) {
         console.warn("Error cleaning up socket listener in Dashboard:", error);
       }

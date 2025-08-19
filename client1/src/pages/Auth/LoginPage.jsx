@@ -8,6 +8,8 @@ const roles = [
   { label: 'Citizen', value: 'Citizen' },
   { label: 'Enforcement', value: 'Enforcement' },
   { label: 'Admin', value: 'Admin' },
+  { label: 'Urban Development', value: 'UrbanDevelopment' },
+  { label: 'Revenue Department', value: 'Revenue' },
 ];
 
 export default function LoginPage() {

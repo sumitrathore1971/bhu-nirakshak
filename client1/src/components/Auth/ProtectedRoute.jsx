@@ -29,6 +29,10 @@ export default function ProtectedRoute({ children, allow = [] }) {
         ? "/enforce-dashboard"
         : user.role === "Admin"
         ? "/admin-dashboard"
+        : user.role === "UrbanDevelopment"
+        ? "/department"
+        : user.role === "Revenue"
+        ? "/revenue-dashboard"
         : "/";
 
     return <Navigate to={redirectPath} replace />;

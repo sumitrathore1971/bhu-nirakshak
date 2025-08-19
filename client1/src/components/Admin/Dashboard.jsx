@@ -30,16 +30,21 @@ import { addBoundaryToMap } from "../../lib/boundary";
 import { notificationEvents } from "./NotificationPanel.jsx"; // Import the global event system
 import { getApiBaseUrl } from "../../lib/utils.js";
 
-const kpis = {
-  totalReports: 324,
-  verifiedCases: 167,
-  actionsTaken: 112,
-  closedCases: 78,
-  pendingCases: 89,
-};
-
 export default function AdminDashboardHome() {
   const { isAuthenticated, user } = useAuth();
+  const [kpis, setKpis] = useState({
+    totalReports: 0,
+    verifiedCases: 0,
+    actionsTaken: 0,
+    closedCases: 0,
+    pendingCases: 0,
+    newLast7Days: 0,
+    openCases: 0,
+    verificationRate: 0,
+    closureRate: 0,
+    topCategory: "N/A",
+    topCategoryCount: 0,
+  });
   const [recentReports, setRecentReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [enforcementOfficers, setEnforcementOfficers] = useState([]);
@@ -447,6 +452,38 @@ export default function AdminDashboardHome() {
     }
   };
 
+  // Fetch KPI stats
+  const loadKpis = async () => {
+    try {
+      const statsResp = await reportService.getReportStats();
+      const data = statsResp.data || statsResp;
+      const total = data.totalReports || 0;
+      const verified = data.verifiedReports || 0;
+      const closed = data.closedReports || 0;
+      const pending = data.pendingReports || 0;
+      const actionTaken = data.actionTakenReports || 0;
+      const recent = data.recentReports || 0;
+      const top = Array.isArray(data.categoryStats) && data.categoryStats.length > 0
+        ? { name: data.categoryStats[0]._id || "N/A", count: data.categoryStats[0].count || 0 }
+        : { name: "N/A", count: 0 };
+      setKpis({
+        totalReports: total,
+        verifiedCases: verified,
+        actionsTaken: actionTaken,
+        closedCases: closed,
+        pendingCases: pending,
+        newLast7Days: recent,
+        openCases: Math.max(total - closed, 0),
+        verificationRate: total > 0 ? Math.round((verified / total) * 100) : 0,
+        closureRate: total > 0 ? Math.round((closed / total) * 100) : 0,
+        topCategory: top.name,
+        topCategoryCount: top.count,
+      });
+    } catch (error) {
+      console.error("Error loading KPI stats:", error);
+    }
+  };
+
   // Handle new report notifications
   const handleNewReport = (data) => {
     console.log("📢 Received new report notification in dashboard:", data);
@@ -457,6 +494,8 @@ export default function AdminDashboardHome() {
     if (mapRef.current && mapRef.current.isStyleLoaded()) {
       addCaseMarkers(mapRef.current);
     }
+    // Refresh KPIs on new report
+    loadKpis();
   };
 
   // Subscribe to global notification events
@@ -470,6 +509,7 @@ export default function AdminDashboardHome() {
     if (isAuthenticated) {
       loadSavedDrawings();
       fetchRecentReports();
+      loadKpis();
     }
   }, [isAuthenticated]);
 
@@ -1120,7 +1160,7 @@ export default function AdminDashboardHome() {
       </motion.div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-neutral-900 rounded-xl p-6 shadow-md border border-gray-200 dark:border-neutral-800">
           <div className="flex items-center justify-between">
             <div>
@@ -1134,6 +1174,79 @@ export default function AdminDashboardHome() {
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
               <FileText
                 className="text-blue-600 dark:text-blue-400"
+                size={24}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl p-6 shadow-md border border-gray-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Open Cases
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {kpis.openCases}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg flex items-center justify-center">
+              <Eye
+                className="text-indigo-600 dark:text-indigo-400"
+                size={24}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl p-6 shadow-md border border-gray-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Verification Rate
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {kpis.verificationRate}%
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+              <CheckCircle
+                className="text-blue-600 dark:text-blue-400"
+                size={24}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl p-6 shadow-md border border-gray-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Closure Rate
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {kpis.closureRate}%
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+              <CheckCircle
+                className="text-green-600 dark:text-green-400"
+                size={24}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl p-6 shadow-md border border-gray-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Top Category
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {kpis.topCategory}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{kpis.topCategoryCount} reports</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+              <Database
+                className="text-purple-600 dark:text-purple-400"
                 size={24}
               />
             </div>
@@ -1206,6 +1319,24 @@ export default function AdminDashboardHome() {
             <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
               <Clock
                 className="text-yellow-600 dark:text-yellow-400"
+                size={24}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl p-6 shadow-md border border-gray-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                New (7 days)
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {kpis.newLast7Days}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+              <Calendar
+                className="text-purple-600 dark:text-purple-400"
                 size={24}
               />
             </div>
@@ -1533,17 +1664,13 @@ export default function AdminDashboardHome() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
-                {user?.role === "Admin" && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
+                {/* Actions column removed */}
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-neutral-800">
               {reportsLoading ? (
                 <tr>
-                  <td colSpan={user?.role === "Admin" ? 7 : 6} className="px-6 py-8 text-center">
+                  <td colSpan={6} className="px-6 py-8 text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
                     <p className="mt-2 text-gray-600 dark:text-gray-400 text-sm">
                       Loading reports...
@@ -1553,7 +1680,7 @@ export default function AdminDashboardHome() {
               ) : recentReports.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={user?.role === "Admin" ? 7 : 6}
+                    colSpan={6}
                     className="px-6 py-8 text-center text-gray-600 dark:text-gray-400"
                   >
                     No reports found
@@ -1603,21 +1730,7 @@ export default function AdminDashboardHome() {
                         {item.status}
                       </span>
                     </td>
-                    {user?.role === "Admin" && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {item.assignedTo ? (
-                          <span className="text-gray-600 dark:text-gray-300">Assigned</span>
-                        ) : (
-                          <button
-                            onClick={() => openAssignModal(item)}
-                            className="px-3 py-1.5 bg-primary text-white rounded-md hover:opacity-90 disabled:opacity-50"
-                            disabled={assignLoading}
-                          >
-                            Assign
-                          </button>
-                        )}
-                      </td>
-                    )}
+                    {/* Assign button removed from recent section */}
                   </tr>
                 ))
               )}

@@ -370,6 +370,45 @@ class ReportService {
     }
   }
 
+  // Get status time-series for analytics (admin/enforcement only)
+  async getReportTimeSeries(days = 30) {
+    try {
+      const token = this.getAuthToken();
+      if (!token) {
+        throw new Error(
+          "Authentication required. Please log in to view time-series."
+        );
+      }
+
+      const response = await fetch(
+        `${this.baseURL}/reports/stats/timeseries?days=${encodeURIComponent(
+          days
+        )}`,
+        {
+          method: "GET",
+          headers: this.getAuthHeaders(),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Authentication failed. Please log in again.");
+        } else if (response.status === 403) {
+          throw new Error(
+            "Access denied. Admin/Enforcement privileges required."
+          );
+        }
+        throw new Error(data.message || "Failed to fetch time-series");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error fetching report time-series:", error);
+      throw error;
+    }
+  }
+
   // Assign report to enforcement officer (admin only)
   async assignReport(reportId, assignedTo) {
     try {
