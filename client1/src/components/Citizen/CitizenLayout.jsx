@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Sidebar from './Sidebar';
+import Chatbot from '../Chatbot';
 
 export default function CitizenLayout({ children, activePage, setActivePage }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -45,6 +46,9 @@ export default function CitizenLayout({ children, activePage, setActivePage }) {
           </motion.div>
         </main>
       </div>
+      
+      {/* AI Chatbot */}
+      <Chatbot />
     </div>
   );
 }
