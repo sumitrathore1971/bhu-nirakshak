@@ -968,10 +968,7 @@ export default function CitizenReports() {
                       prev ? { ...prev, status: "Rejected" } : prev
                     );
                   }}
-                  disabled={
-                    updatingReportId === selected?._id ||
-                    selected?.status === "Rejected"
-                  }
+                  disabled={updatingReportId === selected?._id}
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title={
                     selected?.status === "Rejected"
@@ -982,24 +979,17 @@ export default function CitizenReports() {
                   Reject Case
                 </button>
                 <button
-                  disabled={
-                    updatingReportId === selected?._id ||
-                    selected?.status === "Rejected"
-                  }
+                  disabled={updatingReportId === selected?._id}
                   className="px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
                     if (!selected) return;
                     await handleAssignToEnforcement(selected);
-                    setSelected(null);
                   }}
                 >
                   Assign to Enforcement
                 </button>
                 <button
-                  disabled={
-                    updatingReportId === selected?._id ||
-                    selected?.status === "Rejected"
-                  }
+                  disabled={updatingReportId === selected?._id}
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
                     if (!selected?._id) return;

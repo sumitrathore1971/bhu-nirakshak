@@ -1,0 +1,1105 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.890309,
+          22.731771
+        ]
+      },
+      "properties": {
+        "area_name": "Rajwada",
+        "latitude": 22.731771,
+        "longitude": 75.890309,
+        "past_challans": 33,
+        "illegal_construction_cases": 15,
+        "encroachment_cases": 21,
+        "population_density": 10784,
+        "avg_land_value": 3448,
+        "risk_score": 51.4,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.873219,
+          22.65605
+        ]
+      },
+      "properties": {
+        "area_name": "Sarafa Bazaar",
+        "latitude": 22.65605,
+        "longitude": 75.873219,
+        "past_challans": 189,
+        "illegal_construction_cases": 26,
+        "encroachment_cases": 7,
+        "population_density": 14906,
+        "avg_land_value": 12997,
+        "risk_score": 33.07,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.873202,
+          22.666609
+        ]
+      },
+      "properties": {
+        "area_name": "Khajrana",
+        "latitude": 22.666609,
+        "longitude": 75.873202,
+        "past_challans": 40,
+        "illegal_construction_cases": 2,
+        "encroachment_cases": 68,
+        "population_density": 11016,
+        "avg_land_value": 4169,
+        "risk_score": 21.07,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.860232,
+          22.727334
+        ]
+      },
+      "properties": {
+        "area_name": "Vijay Nagar",
+        "latitude": 22.727334,
+        "longitude": 75.860232,
+        "past_challans": 30,
+        "illegal_construction_cases": 16,
+        "encroachment_cases": 85,
+        "population_density": 5030,
+        "avg_land_value": 9331,
+        "risk_score": 49.63,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.885436,
+          22.733239
+        ]
+      },
+      "properties": {
+        "area_name": "Palasia",
+        "latitude": 22.733239,
+        "longitude": 75.885436,
+        "past_challans": 76,
+        "illegal_construction_cases": 53,
+        "encroachment_cases": 104,
+        "population_density": 13599,
+        "avg_land_value": 6587,
+        "risk_score": 68.07,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.899632,
+          22.738638
+        ]
+      },
+      "properties": {
+        "area_name": "Geeta Bhawan",
+        "latitude": 22.738638,
+        "longitude": 75.899632,
+        "past_challans": 40,
+        "illegal_construction_cases": 12,
+        "encroachment_cases": 94,
+        "population_density": 7726,
+        "avg_land_value": 10263,
+        "risk_score": 41.0,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.819778,
+          22.697798
+        ]
+      },
+      "properties": {
+        "area_name": "Bhanwarkuan",
+        "latitude": 22.697798,
+        "longitude": 75.819778,
+        "past_challans": 112,
+        "illegal_construction_cases": 64,
+        "encroachment_cases": 92,
+        "population_density": 8699,
+        "avg_land_value": 9496,
+        "risk_score": 76.93,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.802915,
+          22.734079
+        ]
+      },
+      "properties": {
+        "area_name": "Annapurna",
+        "latitude": 22.734079,
+        "longitude": 75.802915,
+        "past_challans": 25,
+        "illegal_construction_cases": 37,
+        "encroachment_cases": 100,
+        "population_density": 2926,
+        "avg_land_value": 12006,
+        "risk_score": 45.43,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.861894,
+          22.722779
+        ]
+      },
+      "properties": {
+        "area_name": "Sudama Nagar",
+        "latitude": 22.722779,
+        "longitude": 75.861894,
+        "past_challans": 88,
+        "illegal_construction_cases": 90,
+        "encroachment_cases": 110,
+        "population_density": 11750,
+        "avg_land_value": 6365,
+        "risk_score": 51.8,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.800071,
+          22.702255
+        ]
+      },
+      "properties": {
+        "area_name": "Rajendra Nagar",
+        "latitude": 22.702255,
+        "longitude": 75.800071,
+        "past_challans": 164,
+        "illegal_construction_cases": 14,
+        "encroachment_cases": 71,
+        "population_density": 17115,
+        "avg_land_value": 11479,
+        "risk_score": 75.37,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.801204,
+          22.774234
+        ]
+      },
+      "properties": {
+        "area_name": "Tilak Nagar",
+        "latitude": 22.774234,
+        "longitude": 75.801204,
+        "past_challans": 141,
+        "illegal_construction_cases": 65,
+        "encroachment_cases": 78,
+        "population_density": 11115,
+        "avg_land_value": 14229,
+        "risk_score": 52.57,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.81719,
+          22.723384
+        ]
+      },
+      "properties": {
+        "area_name": "LIG Colony",
+        "latitude": 22.723384,
+        "longitude": 75.81719,
+        "past_challans": 6,
+        "illegal_construction_cases": 22,
+        "encroachment_cases": 46,
+        "population_density": 3385,
+        "avg_land_value": 5055,
+        "risk_score": 55.13,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.856089,
+          22.717142
+        ]
+      },
+      "properties": {
+        "area_name": "MIG Colony",
+        "latitude": 22.717142,
+        "longitude": 75.856089,
+        "past_challans": 108,
+        "illegal_construction_cases": 90,
+        "encroachment_cases": 75,
+        "population_density": 14343,
+        "avg_land_value": 6835,
+        "risk_score": 65.3,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.885234,
+          22.776236
+        ]
+      },
+      "properties": {
+        "area_name": "Malharganj",
+        "latitude": 22.776236,
+        "longitude": 75.885234,
+        "past_challans": 89,
+        "illegal_construction_cases": 57,
+        "encroachment_cases": 18,
+        "population_density": 15836,
+        "avg_land_value": 10163,
+        "risk_score": 57.3,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.88332,
+          22.762755
+        ]
+      },
+      "properties": {
+        "area_name": "Siyaganj",
+        "latitude": 22.762755,
+        "longitude": 75.88332,
+        "past_challans": 195,
+        "illegal_construction_cases": 51,
+        "encroachment_cases": 17,
+        "population_density": 2069,
+        "avg_land_value": 12172,
+        "risk_score": 57.0,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.83231,
+          22.76334
+        ]
+      },
+      "properties": {
+        "area_name": "Nanda Nagar",
+        "latitude": 22.76334,
+        "longitude": 75.83231,
+        "past_challans": 22,
+        "illegal_construction_cases": 38,
+        "encroachment_cases": 12,
+        "population_density": 9591,
+        "avg_land_value": 10384,
+        "risk_score": 30.47,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.805845,
+          22.736474
+        ]
+      },
+      "properties": {
+        "area_name": "Raj Mohalla",
+        "latitude": 22.736474,
+        "longitude": 75.805845,
+        "past_challans": 122,
+        "illegal_construction_cases": 2,
+        "encroachment_cases": 3,
+        "population_density": 12153,
+        "avg_land_value": 5882,
+        "risk_score": 56.77,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.800517,
+          22.666661
+        ]
+      },
+      "properties": {
+        "area_name": "Chhatribagh",
+        "latitude": 22.666661,
+        "longitude": 75.800517,
+        "past_challans": 64,
+        "illegal_construction_cases": 54,
+        "encroachment_cases": 35,
+        "population_density": 3896,
+        "avg_land_value": 13598,
+        "risk_score": 66.1,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.828178,
+          22.707341
+        ]
+      },
+      "properties": {
+        "area_name": "Jawahar Marg",
+        "latitude": 22.707341,
+        "longitude": 75.828178,
+        "past_challans": 108,
+        "illegal_construction_cases": 100,
+        "encroachment_cases": 61,
+        "population_density": 2335,
+        "avg_land_value": 9322,
+        "risk_score": 42.23,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.825967,
+          22.651069
+        ]
+      },
+      "properties": {
+        "area_name": "Yeshwant Club Area",
+        "latitude": 22.651069,
+        "longitude": 75.825967,
+        "past_challans": 14,
+        "illegal_construction_cases": 40,
+        "encroachment_cases": 10,
+        "population_density": 13940,
+        "avg_land_value": 11555,
+        "risk_score": 27.73,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.81021,
+          22.732223
+        ]
+      },
+      "properties": {
+        "area_name": "Snehlataganj",
+        "latitude": 22.732223,
+        "longitude": 75.81021,
+        "past_challans": 65,
+        "illegal_construction_cases": 86,
+        "encroachment_cases": 92,
+        "population_density": 14807,
+        "avg_land_value": 13579,
+        "risk_score": 65.17,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.800778,
+          22.736242
+        ]
+      },
+      "properties": {
+        "area_name": "Mhow Naka",
+        "latitude": 22.736242,
+        "longitude": 75.800778,
+        "past_challans": 115,
+        "illegal_construction_cases": 64,
+        "encroachment_cases": 82,
+        "population_density": 16049,
+        "avg_land_value": 5193,
+        "risk_score": 51.23,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.848915,
+          22.711925
+        ]
+      },
+      "properties": {
+        "area_name": "Bhawarkua Square",
+        "latitude": 22.711925,
+        "longitude": 75.848915,
+        "past_challans": 11,
+        "illegal_construction_cases": 50,
+        "encroachment_cases": 30,
+        "population_density": 15285,
+        "avg_land_value": 2122,
+        "risk_score": 50.77,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.860532,
+          22.766256
+        ]
+      },
+      "properties": {
+        "area_name": "Kanadia Road",
+        "latitude": 22.766256,
+        "longitude": 75.860532,
+        "past_challans": 155,
+        "illegal_construction_cases": 67,
+        "encroachment_cases": 117,
+        "population_density": 14528,
+        "avg_land_value": 10973,
+        "risk_score": 63.13,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.854897,
+          22.702636
+        ]
+      },
+      "properties": {
+        "area_name": "Bengali Square",
+        "latitude": 22.702636,
+        "longitude": 75.854897,
+        "past_challans": 122,
+        "illegal_construction_cases": 63,
+        "encroachment_cases": 87,
+        "population_density": 4665,
+        "avg_land_value": 5715,
+        "risk_score": 63.3,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.805801,
+          22.733777
+        ]
+      },
+      "properties": {
+        "area_name": "Pipliyahana",
+        "latitude": 22.733777,
+        "longitude": 75.805801,
+        "past_challans": 113,
+        "illegal_construction_cases": 62,
+        "encroachment_cases": 33,
+        "population_density": 18504,
+        "avg_land_value": 6727,
+        "risk_score": 72.87,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.932988,
+          22.73785
+        ]
+      },
+      "properties": {
+        "area_name": "Manik Bagh",
+        "latitude": 22.73785,
+        "longitude": 75.932988,
+        "past_challans": 13,
+        "illegal_construction_cases": 35,
+        "encroachment_cases": 99,
+        "population_density": 12492,
+        "avg_land_value": 10225,
+        "risk_score": 44.87,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.882039,
+          22.696951
+        ]
+      },
+      "properties": {
+        "area_name": "Dhar Road",
+        "latitude": 22.696951,
+        "longitude": 75.882039,
+        "past_challans": 18,
+        "illegal_construction_cases": 76,
+        "encroachment_cases": 25,
+        "population_density": 15009,
+        "avg_land_value": 13070,
+        "risk_score": 35.43,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.823246,
+          22.690557
+        ]
+      },
+      "properties": {
+        "area_name": "Chandan Nagar",
+        "latitude": 22.690557,
+        "longitude": 75.823246,
+        "past_challans": 167,
+        "illegal_construction_cases": 62,
+        "encroachment_cases": 96,
+        "population_density": 19478,
+        "avg_land_value": 4645,
+        "risk_score": 79.57,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.832978,
+          22.65458
+        ]
+      },
+      "properties": {
+        "area_name": "Airport Road",
+        "latitude": 22.65458,
+        "longitude": 75.832978,
+        "past_challans": 107,
+        "illegal_construction_cases": 27,
+        "encroachment_cases": 102,
+        "population_density": 13827,
+        "avg_land_value": 9096,
+        "risk_score": 46.5,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.926246,
+          22.700066
+        ]
+      },
+      "properties": {
+        "area_name": "Navlakha",
+        "latitude": 22.700066,
+        "longitude": 75.926246,
+        "past_challans": 94,
+        "illegal_construction_cases": 12,
+        "encroachment_cases": 72,
+        "population_density": 15163,
+        "avg_land_value": 11618,
+        "risk_score": 55.2,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.88546,
+          22.741401
+        ]
+      },
+      "properties": {
+        "area_name": "Pardesipura",
+        "latitude": 22.741401,
+        "longitude": 75.88546,
+        "past_challans": 104,
+        "illegal_construction_cases": 50,
+        "encroachment_cases": 25,
+        "population_density": 6378,
+        "avg_land_value": 14731,
+        "risk_score": 58.57,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.874836,
+          22.663813
+        ]
+      },
+      "properties": {
+        "area_name": "Malviya Nagar",
+        "latitude": 22.663813,
+        "longitude": 75.874836,
+        "past_challans": 188,
+        "illegal_construction_cases": 45,
+        "encroachment_cases": 43,
+        "population_density": 10708,
+        "avg_land_value": 6079,
+        "risk_score": 79.1,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.916314,
+          22.735544
+        ]
+      },
+      "properties": {
+        "area_name": "Sukhliya",
+        "latitude": 22.735544,
+        "longitude": 75.916314,
+        "past_challans": 40,
+        "illegal_construction_cases": 48,
+        "encroachment_cases": 3,
+        "population_density": 3133,
+        "avg_land_value": 7202,
+        "risk_score": 58.7,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.895297,
+          22.757624
+        ]
+      },
+      "properties": {
+        "area_name": "Dewas Naka",
+        "latitude": 22.757624,
+        "longitude": 75.895297,
+        "past_challans": 139,
+        "illegal_construction_cases": 33,
+        "encroachment_cases": 103,
+        "population_density": 5538,
+        "avg_land_value": 4690,
+        "risk_score": 77.6,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.842324,
+          22.714511
+        ]
+      },
+      "properties": {
+        "area_name": "Musakhedi",
+        "latitude": 22.714511,
+        "longitude": 75.842324,
+        "past_challans": 173,
+        "illegal_construction_cases": 24,
+        "encroachment_cases": 26,
+        "population_density": 9829,
+        "avg_land_value": 11764,
+        "risk_score": 62.1,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.850044,
+          22.698711
+        ]
+      },
+      "properties": {
+        "area_name": "Niranjanpur",
+        "latitude": 22.698711,
+        "longitude": 75.850044,
+        "past_challans": 23,
+        "illegal_construction_cases": 9,
+        "encroachment_cases": 1,
+        "population_density": 2361,
+        "avg_land_value": 6548,
+        "risk_score": 50.6,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.901036,
+          22.657736
+        ]
+      },
+      "properties": {
+        "area_name": "Lasudia Mori",
+        "latitude": 22.657736,
+        "longitude": 75.901036,
+        "past_challans": 141,
+        "illegal_construction_cases": 18,
+        "encroachment_cases": 0,
+        "population_density": 16647,
+        "avg_land_value": 3033,
+        "risk_score": 27.5,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.911247,
+          22.652713
+        ]
+      },
+      "properties": {
+        "area_name": "Rau",
+        "latitude": 22.652713,
+        "longitude": 75.911247,
+        "past_challans": 122,
+        "illegal_construction_cases": 74,
+        "encroachment_cases": 12,
+        "population_density": 7832,
+        "avg_land_value": 3423,
+        "risk_score": 42.27,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.901539,
+          22.778688
+        ]
+      },
+      "properties": {
+        "area_name": "Rajendra Nagar Extension",
+        "latitude": 22.778688,
+        "longitude": 75.901539,
+        "past_challans": 176,
+        "illegal_construction_cases": 14,
+        "encroachment_cases": 61,
+        "population_density": 17148,
+        "avg_land_value": 8006,
+        "risk_score": 73.57,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.856695,
+          22.658225
+        ]
+      },
+      "properties": {
+        "area_name": "Pipliyahana Square",
+        "latitude": 22.658225,
+        "longitude": 75.856695,
+        "past_challans": 64,
+        "illegal_construction_cases": 15,
+        "encroachment_cases": 98,
+        "population_density": 6349,
+        "avg_land_value": 6263,
+        "risk_score": 46.2,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.805973,
+          22.77344
+        ]
+      },
+      "properties": {
+        "area_name": "Kanadia Village",
+        "latitude": 22.77344,
+        "longitude": 75.805973,
+        "past_challans": 152,
+        "illegal_construction_cases": 73,
+        "encroachment_cases": 70,
+        "population_density": 13286,
+        "avg_land_value": 12212,
+        "risk_score": 75.93,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.836185,
+          22.677006
+        ]
+      },
+      "properties": {
+        "area_name": "Rani Bagh",
+        "latitude": 22.677006,
+        "longitude": 75.836185,
+        "past_challans": 88,
+        "illegal_construction_cases": 90,
+        "encroachment_cases": 117,
+        "population_density": 8442,
+        "avg_land_value": 6823,
+        "risk_score": 71.5,
+        "risk_category": "High"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.907711,
+          22.7414
+        ]
+      },
+      "properties": {
+        "area_name": "Mangliya",
+        "latitude": 22.7414,
+        "longitude": 75.907711,
+        "past_challans": 78,
+        "illegal_construction_cases": 1,
+        "encroachment_cases": 77,
+        "population_density": 13108,
+        "avg_land_value": 13393,
+        "risk_score": 25.63,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.824801,
+          22.75704
+        ]
+      },
+      "properties": {
+        "area_name": "Bijalpur",
+        "latitude": 22.75704,
+        "longitude": 75.824801,
+        "past_challans": 66,
+        "illegal_construction_cases": 40,
+        "encroachment_cases": 8,
+        "population_density": 14660,
+        "avg_land_value": 6594,
+        "risk_score": 25.73,
+        "risk_category": "Low"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.911936,
+          22.681736
+        ]
+      },
+      "properties": {
+        "area_name": "Hawa Bangla",
+        "latitude": 22.681736,
+        "longitude": 75.911936,
+        "past_challans": 20,
+        "illegal_construction_cases": 0,
+        "encroachment_cases": 104,
+        "population_density": 4909,
+        "avg_land_value": 3328,
+        "risk_score": 41.4,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.819977,
+          22.717072
+        ]
+      },
+      "properties": {
+        "area_name": "Scheme No. 78 (Vijay Nagar)",
+        "latitude": 22.717072,
+        "longitude": 75.819977,
+        "past_challans": 159,
+        "illegal_construction_cases": 40,
+        "encroachment_cases": 79,
+        "population_density": 12506,
+        "avg_land_value": 6167,
+        "risk_score": 53.13,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.877512,
+          22.686146
+        ]
+      },
+      "properties": {
+        "area_name": "Scheme No. 140",
+        "latitude": 22.686146,
+        "longitude": 75.877512,
+        "past_challans": 161,
+        "illegal_construction_cases": 40,
+        "encroachment_cases": 62,
+        "population_density": 11994,
+        "avg_land_value": 12446,
+        "risk_score": 59.63,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.844911,
+          22.701401
+        ]
+      },
+      "properties": {
+        "area_name": "Scheme No. 54",
+        "latitude": 22.701401,
+        "longitude": 75.844911,
+        "past_challans": 147,
+        "illegal_construction_cases": 39,
+        "encroachment_cases": 105,
+        "population_density": 19226,
+        "avg_land_value": 13760,
+        "risk_score": 43.4,
+        "risk_category": "Medium"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.908584,
+          22.663185
+        ]
+      },
+      "properties": {
+        "area_name": "Scheme No. 94",
+        "latitude": 22.663185,
+        "longitude": 75.908584,
+        "past_challans": 145,
+        "illegal_construction_cases": 3,
+        "encroachment_cases": 79,
+        "population_density": 4417,
+        "avg_land_value": 4050,
+        "risk_score": 45.8,
+        "risk_category": "Medium"
+      }
+    }
+  ]
+}

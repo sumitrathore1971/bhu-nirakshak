@@ -8,7 +8,8 @@ import {
   Users,
   Settings as SettingsIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle
 } from 'lucide-react';
 
 const menuItems = [
@@ -18,7 +19,8 @@ const menuItems = [
   { id: 'worker', label: 'Worker Reports', icon: HardHat },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'users', label: 'User Management', icon: Users },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon }
+  { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  { id: 'risk', label: 'Risk Assessment', icon: AlertTriangle }
 ];
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, activePage, setActivePage }) {

@@ -9,6 +9,7 @@ import WorkerReports from "../../components/Admin/WorkerReports";
 import Analytics from "../../components/Admin/Analytics";
 import UserManagement from "../../components/Admin/UserManagement";
 import Settings from "../../components/Admin/Settings";
+import RiskAssignment from "../../components/Admin/RiskAssignment";
 
 export default function AdminDashboard() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -30,6 +31,8 @@ export default function AdminDashboard() {
         return <UserManagement />;
       case "settings":
         return <Settings />;
+      case "risk":
+        return <RiskAssignment />;
       default:
         return <Dashboard />;
     }

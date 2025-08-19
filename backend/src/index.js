@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.js";
 import reportsRoutes from "./routes/reports.js";
 import usersRoutes from "./routes/users.js";
 import drawingsRoutes from "./routes/drawings.js";
+import riskDataRoute from "./routes/riskDataRoute.js";
 import { Pool } from "pg";
 import { sequelize } from "./config/database.js";
 import ReportedParcel from "./models/ReportedParcel.js";
@@ -186,6 +187,8 @@ console.log("Mounting users routes at /api/users");
 app.use("/api/users", usersRoutes);
 console.log("Mounting drawings routes at /api/drawings");
 app.use("/api/drawings", drawingsRoutes);
+console.log("Mounting risk data route at /api");
+app.use("/api", riskDataRoute);
 
 // Global error handler
 app.use((err, req, res, next) => {
