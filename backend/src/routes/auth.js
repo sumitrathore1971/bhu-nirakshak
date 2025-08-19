@@ -19,7 +19,7 @@ router.post('/signup', async (req, res) => {
     
     const { name, email, password, role } = req.body;
     if (!name || !email || !password || !role) return res.status(400).json({ message: 'Missing fields' });
-    if (!['Citizen', 'Enforcement', 'Admin'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
+    if (!['Citizen', 'Enforcement', 'Admin', 'UrbanDevelopment', 'Revenue'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
 
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ message: 'Email already registered' });

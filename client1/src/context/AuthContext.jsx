@@ -129,6 +129,10 @@ export function AuthProvider({ children }) {
         return "/enforce-dashboard";
       case "Admin":
         return "/admin-dashboard";
+      case "UrbanDevelopment":
+        return "/department";
+      case "Revenue":
+        return "/revenue-dashboard";
       default:
         return "/";
     }

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { motion } from "framer-motion";
-import { X, Image as ImageIcon, FileText } from "lucide-react";
+import { X, Image as ImageIcon, FileText, Clock, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 import { getStaticBaseUrl } from "../../lib/utils.js";
 import reportService from "../../services/reportService.js";
 
@@ -70,6 +70,53 @@ export default function ReportDetailsModal({ open, onClose, report }) {
     }
     console.log("getMediaUrl - No URL found, returning null");
     return null;
+  };
+
+  // Escalation Matrix configuration with defined timelines
+  const ESCALATION_STAGES = [
+    { key: "Reported", timelineText: "Immediate acknowledgement", add: { hours: 0 } },
+    { key: "Verified", timelineText: "Within 48 hours", add: { hours: 48 } },
+    { key: "Assigned to Enforcement", timelineText: "Within 72 hours after verification", add: { hours: 72 } },
+    { key: "Action Taken", timelineText: "Within 7 days after assignment", add: { days: 7 } },
+    { key: "Closed", timelineText: "Within 2 days after action", add: { days: 2 } },
+  ];
+
+  const getCurrentStageIndex = (status) => {
+    const index = ESCALATION_STAGES.findIndex((s) => s.key === status);
+    return index === -1 ? 0 : index;
+  };
+
+  const addDuration = (date, add) => {
+    if (!date) return null;
+    const d = new Date(date);
+    if (Number.isFinite(add?.hours)) d.setHours(d.getHours() + add.hours);
+    if (Number.isFinite(add?.days)) d.setDate(d.getDate() + add.days);
+    return d;
+  };
+
+  const formatExpected = (date) =>
+    new Date(date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
+
+  // Build cumulative expected-by dates for each stage based on createdAt
+  const expectedByDates = (() => {
+    const base = report?.createdAt ? new Date(report.createdAt) : null;
+    if (!base) return [];
+    const arr = [];
+    let cursor = new Date(base);
+    for (const stage of ESCALATION_STAGES) {
+      cursor = addDuration(cursor, stage.add) || cursor;
+      arr.push(new Date(cursor));
+    }
+    return arr;
+  })();
+
+  // Actual dates coming from real data
+  const ACTUAL_STAGE_DATES = {
+    Reported: report?.createdAt || null,
+    Verified: report?.verifiedAt || null,
+    "Assigned to Enforcement": report?.assignedAt || null,
+    "Action Taken": report?.actionTakenAt || null,
+    Closed: report?.closedAt || null,
   };
 
   function MiniMap({ geometry, color = "#3b82f6" }) {
@@ -319,6 +366,63 @@ export default function ReportDetailsModal({ open, onClose, report }) {
                     No polygon submitted for this report
                   </div>
                 )}
+              </div>
+
+              {/* Escalation Matrix & Timelines */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Escalation Matrix & Timelines</h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                  These are standard SLAs for each stage of complaint resolution. Actual timelines may vary based on case complexity.
+                </p>
+                <div className="space-y-3">
+                  {ESCALATION_STAGES.map((stage, idx) => {
+                    const currentIdx = getCurrentStageIndex(report.status);
+                    const actual = ACTUAL_STAGE_DATES[stage.key];
+                    const isCompleted = idx < currentIdx || Boolean(actual);
+                    const isCurrent = idx === currentIdx;
+                    const Icon = isCompleted ? CheckCircle2 : isCurrent ? Clock : Circle;
+                    const iconColor = isCompleted
+                      ? "text-green-600 dark:text-green-400"
+                      : isCurrent
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-gray-400";
+                    const expected = expectedByDates[idx];
+                    return (
+                      <div key={stage.key} className="flex items-start gap-3 p-3 border border-gray-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900">
+                        <Icon size={18} className={iconColor} />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{stage.key}</p>
+                            {actual ? (
+                              <span className="text-xs text-green-700 dark:text-green-400">
+                                Actual: {formatExpected(actual)}
+                              </span>
+                            ) : expected ? (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Expected by: {formatExpected(expected)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{stage.timelineText}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(() => {
+                  const currentIdx = getCurrentStageIndex(report.status);
+                  const now = new Date();
+                  const hasActualForCurrent = ACTUAL_STAGE_DATES[ESCALATION_STAGES[currentIdx]?.key];
+                  const expectedForCurrent = expectedByDates[currentIdx];
+                  const delayed = !hasActualForCurrent && expectedForCurrent && now > expectedForCurrent;
+                  if (!delayed) return null;
+                  return (
+                    <div className="mt-3 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
+                      <AlertTriangle size={14} className="mt-0.5" />
+                      <span>Current stage appears past the standard SLA. This may be due to operational constraints.</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

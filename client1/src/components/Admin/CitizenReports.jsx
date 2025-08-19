@@ -263,6 +263,28 @@ export default function CitizenReports() {
     return unsubscribe;
   }, []);
 
+  // Subscribe to real-time status updates so admin table reflects enforcement changes (e.g., Closed)
+  useEffect(() => {
+    try {
+      socketService.connect();
+      socketService.joinAdminRoom();
+    } catch (_) {}
+    const handleStatusUpdate = (payload) => {
+      const { reportId, status, data } = payload || {};
+      setReports((prev) =>
+        prev.map((r) =>
+          r._id === reportId || r.reportId === data?.report?.reportId
+            ? { ...r, status: status || data?.report?.status }
+            : r
+        )
+      );
+    };
+    socketService.onReportStatusUpdated(handleStatusUpdate);
+    return () => {
+      socketService.offReportStatusUpdated(handleStatusUpdate);
+    };
+  }, []);
+
   // Fetch reports on component mount and when filters change
   useEffect(() => {
     fetchReports(1);
@@ -294,6 +316,8 @@ export default function CitizenReports() {
         return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400";
       case "Verified":
         return "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400";
+      case "Assigned to Enforcement":
+        return "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-400";
       case "Action Taken":
         return "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400";
       case "Closed":
@@ -379,18 +403,23 @@ export default function CitizenReports() {
     if (!report?._id) return;
     try {
       setUpdatingReportId(report._id);
-      // Update status to Action Taken via backend (emits real-time event to citizen)
-      await reportService.updateReportStatus(report._id, "Action Taken");
+      // Update status to Assigned to Enforcement via backend (emits real-time event to citizen)
+      await reportService.updateReportStatus(
+        report._id,
+        "Assigned to Enforcement"
+      );
       // Optimistically update the local list
       setReports((prev) =>
         prev.map((r) =>
-          r._id === report._id ? { ...r, status: "Action Taken" } : r
+          r._id === report._id
+            ? { ...r, status: "Assigned to Enforcement" }
+            : r
         )
       );
       // Reflect in selected modal if open
       setSelected((prev) =>
         prev && prev._id === report._id
-          ? { ...prev, status: "Action Taken" }
+          ? { ...prev, status: "Assigned to Enforcement" }
           : prev
       );
 
@@ -464,6 +493,7 @@ export default function CitizenReports() {
             <option>All</option>
             <option>Pending</option>
             <option>Verified</option>
+            <option>Assigned to Enforcement</option>
             <option>Action Taken</option>
             <option>Closed</option>
           </select>

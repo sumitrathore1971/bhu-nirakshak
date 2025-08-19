@@ -5,7 +5,6 @@ import Navbar from "../../components/Admin/Navbar";
 import Dashboard from "../../components/Admin/Dashboard";
 import CitizenReports from "../../components/Admin/CitizenReports";
 import EnforcementActivity from "../../components/Admin/EnforcementActivity";
-import WorkerReports from "../../components/Admin/WorkerReports";
 import Analytics from "../../components/Admin/Analytics";
 import UserManagement from "../../components/Admin/UserManagement";
 import Settings from "../../components/Admin/Settings";
@@ -22,8 +21,7 @@ export default function AdminDashboard() {
         return <CitizenReports />;
       case "enforcement":
         return <EnforcementActivity />;
-      case "worker":
-        return <WorkerReports />;
+      // 'worker' page removed
       case "analytics":
         return <Analytics />;
       case "users":

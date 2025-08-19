@@ -15,6 +15,7 @@ import NavbarDemo from "./pages/NavbarDemo";
 import About from "./pages/About";
 import Help from "./pages/Help";
 import Contact from "./pages/Contact";
+import RevenueDepartmentPage from "./pages/RevenueDepartment/RevenueDepartmentPage";
 
 function App() {
   return (
@@ -54,6 +55,16 @@ function App() {
             element={
               <ProtectedRoute allow={["Admin"]}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected legacy routes for compatibility */}
+          <Route
+            path="/revenue-dashboard"
+            element={
+              <ProtectedRoute allow={["Revenue"]}>
+                <RevenueDepartmentPage />
               </ProtectedRoute>
             }
           />
@@ -124,7 +135,14 @@ function App() {
             }
           />
           {/* removed /citizen/view-encroachments route */}
-          <Route path="/department" element={<DepartmentPanelPage />} />
+          <Route
+            path="/department"
+            element={
+              <ProtectedRoute allow={["UrbanDevelopment"]}>
+                <DepartmentPanelPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/enforcement"
             element={

@@ -126,7 +126,7 @@ const reportSchema = new mongoose.Schema(
     // Report status and workflow
     status: {
       type: String,
-      enum: ['Pending', 'Verified', 'Action Taken', 'Closed', 'Rejected'],
+      enum: ['Pending', 'Verified', 'Assigned to Enforcement', 'Action Taken', 'Closed', 'Rejected'],
       default: 'Pending'
     },
     priority: {
@@ -145,6 +145,9 @@ const reportSchema = new mongoose.Schema(
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+    assignedAt: {
+      type: Date
     },
     estimatedResolutionTime: {
       type: Number, // in days
@@ -232,6 +235,7 @@ reportSchema.virtual('statusStage').get(function() {
   const stageMap = {
     'Pending': 0,
     'Verified': 1,
+    'Assigned to Enforcement': 1,
     'Action Taken': 2,
     'Closed': 3,
     'Rejected': -1
@@ -244,6 +248,7 @@ reportSchema.pre('save', function(next) {
   const stageMap = {
     'Pending': 0,
     'Verified': 1,
+    'Assigned to Enforcement': 1,
     'Action Taken': 2,
     'Closed': 3,
     'Rejected': -1

@@ -7,7 +7,7 @@ import FlashMessage from "../FlashMessage.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import socketService from "../../services/socketService.js";
 
-const stages = ["Reported", "Verified", "Action Taken", "Closed"];
+const stages = ["Reported", "Verified", "Assigned to Enforcement", "Action Taken", "Closed"];
 
 export default function MyReports() {
   const { user } = useAuth();
@@ -136,6 +136,8 @@ export default function MyReports() {
         return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400";
       case "Verified":
         return "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400";
+      case "Assigned to Enforcement":
+        return "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-400";
       case "Action Taken":
         return "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400";
       case "Closed":
@@ -226,6 +228,7 @@ export default function MyReports() {
           <option value="">All Status</option>
           <option value="Pending">Pending</option>
           <option value="Verified">Verified</option>
+          <option value="Assigned to Enforcement">Assigned to Enforcement</option>
           <option value="Action Taken">Action Taken</option>
           <option value="Closed">Closed</option>
           <option value="Rejected">Rejected</option>

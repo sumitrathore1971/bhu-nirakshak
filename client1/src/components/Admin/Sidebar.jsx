@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   FileText,
   ShieldCheck,
-  HardHat,
   BarChart3,
   Users,
   Settings as SettingsIcon,
@@ -15,7 +14,6 @@ const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'citizen', label: 'Citizen Reports', icon: FileText },
   { id: 'enforcement', label: 'Enforcement Activity', icon: ShieldCheck },
-  { id: 'worker', label: 'Worker Reports', icon: HardHat },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'users', label: 'User Management', icon: Users },
   { id: 'settings', label: 'Settings', icon: SettingsIcon }
