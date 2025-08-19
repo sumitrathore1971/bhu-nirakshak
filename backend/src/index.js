@@ -9,6 +9,7 @@ import reportsRoutes from "./routes/reports.js";
 import usersRoutes from "./routes/users.js";
 import drawingsRoutes from "./routes/drawings.js";
 import riskDataRoute from "./routes/riskDataRoute.js";
+import chatRoutes from "./routes/chat.js";
 import { Pool } from "pg";
 import { sequelize } from "./config/database.js";
 import ReportedParcel from "./models/ReportedParcel.js";
@@ -187,6 +188,8 @@ console.log("Mounting users routes at /api/users");
 app.use("/api/users", usersRoutes);
 console.log("Mounting drawings routes at /api/drawings");
 app.use("/api/drawings", drawingsRoutes);
+console.log("Mounting chat routes at /api/chat");
+app.use("/api/chat", chatRoutes);
 console.log("Mounting risk data route at /api");
 app.use("/api", riskDataRoute);
 
