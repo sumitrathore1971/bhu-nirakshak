@@ -8,6 +8,7 @@ const menuItems = [
   { id: 'Violations', label: 'Violations', icon: AlertTriangle },
   { id: 'Inspections', label: 'Inspections', icon: ClipboardCheck },
   { id: 'Regularization', label: 'Regularization', icon: FileCheck },
+  { id: 'Construction', label: 'Construction Plans', icon: FileCheck },
 ];
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setActiveTab }) {

@@ -6,6 +6,8 @@ import ReportForm from "@/components/Citizen/ReportForm";
 import MapSelector from "@/components/Citizen/MapSelector";
 import reportService from "@/services/reportService.js";
 import MyReports from "@/components/Citizen/MyReports";
+import ConstructionApplicationForm from "@/components/Citizen/ConstructionApplicationForm.jsx";
+import MyConstructionApplications from "@/components/Citizen/MyConstructionApplications.jsx";
 import HelpGuidelines from "@/components/Citizen/HelpGuidelines";
 import Profile from "@/components/Citizen/Profile";
 import TrackCase from "@/components/Citizen/TrackCase";
@@ -53,7 +55,9 @@ export default function CitizenPortal() {
   // Update active page based on current route
   useEffect(() => {
     const path = location_path.pathname;
-    if (path.includes("/report")) setActivePage("report");
+    if (path.includes("/construction/apply")) setActivePage("construction-apply");
+    else if (path.includes("/construction/my")) setActivePage("my-construction");
+    else if (path.includes("/report")) setActivePage("report");
     else if (path.includes("/my-reports")) setActivePage("my-reports");
     // removed view-encroachments route
     else if (path.includes("/track")) setActivePage("track");
@@ -93,6 +97,44 @@ export default function CitizenPortal() {
 
   const renderContent = () => {
     switch (activePage) {
+      case "construction-apply":
+        return (
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-6"
+            >
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
+                Construction Plan Application
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">
+                Upload documents and draw your plot polygon.
+              </p>
+            </motion.div>
+            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800 p-4 md:p-6">
+              <ConstructionApplicationForm />
+            </div>
+          </div>
+        );
+      case "my-construction":
+        return (
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-6"
+            >
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">My Plans</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">
+                Track your applications and status.
+              </p>
+            </motion.div>
+            <MyConstructionApplications />
+          </div>
+        );
       case "report":
         return (
           <div className="space-y-6">

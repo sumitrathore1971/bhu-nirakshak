@@ -181,6 +181,27 @@ class SocketService {
     if (!arr.includes(callback)) arr.push(callback);
   }
 
+  onConstructionPlanUpdated(callback) {
+    if (!this.socket) return;
+    const eventName = "constructionPlanUpdated";
+    this.socket.off(eventName, callback);
+    this.socket.on(eventName, (payload) => callback(payload));
+    if (!this.listeners.has(eventName)) this.listeners.set(eventName, []);
+    const arr = this.listeners.get(eventName);
+    if (!arr.includes(callback)) arr.push(callback);
+  }
+
+  offConstructionPlanUpdated(callback) {
+    if (!this.socket) return;
+    const eventName = "constructionPlanUpdated";
+    this.socket.off(eventName, callback);
+    if (this.listeners.has(eventName)) {
+      const arr = this.listeners.get(eventName);
+      const idx = arr.indexOf(callback);
+      if (idx > -1) arr.splice(idx, 1);
+    }
+  }
+
   offReportStatusUpdated(callback) {
     if (!this.socket) return;
     const eventName = "reportStatusUpdated";

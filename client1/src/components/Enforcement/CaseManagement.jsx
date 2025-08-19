@@ -1222,7 +1222,6 @@ export default function CaseManagement() {
                     {[
                       "overview",
                       "photos",
-                      "ai-analysis",
                       "action-history",
                     ].map((tab) => (
                       <button
@@ -1484,18 +1483,7 @@ export default function CaseManagement() {
                     </div>
                   )}
 
-                  {activeTab === "ai-analysis" && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        AI Analysis
-                      </h3>
-                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                        <p className="text-blue-800 dark:text-blue-200">
-                          {selectedCase.aiAnalysis}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  
 
                   {activeTab === "action-history" && (
                     <div>

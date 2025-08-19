@@ -61,7 +61,7 @@ export default function EnforcementPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
       <Sidebar
         isCollapsed={isCollapsed}
@@ -71,7 +71,7 @@ export default function EnforcementPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         {/* Navbar */}
         <Navbar
           isCollapsed={isCollapsed}
@@ -80,7 +80,7 @@ export default function EnforcementPage() {
         />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1">
           <AnimatePresence mode="wait">
             <motion.div
               key={activePage}

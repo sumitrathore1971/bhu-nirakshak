@@ -25,6 +25,18 @@ const menuItems = [
     icon: FolderOpen,
     path: "/citizen/my-reports",
   },
+  {
+    id: "construction-apply",
+    label: "Construction Plan",
+    icon: FileText,
+    path: "/citizen/construction/apply",
+  },
+  {
+    id: "my-construction",
+    label: "My Plans",
+    icon: FolderOpen,
+    path: "/citizen/construction/my",
+  },
   { id: "track", label: "Track Case", icon: Search, path: "/citizen/track" },
   {
     id: "help",

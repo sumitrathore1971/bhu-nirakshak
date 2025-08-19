@@ -9,6 +9,7 @@ import reportsRoutes from "./routes/reports.js";
 import usersRoutes from "./routes/users.js";
 import drawingsRoutes from "./routes/drawings.js";
 import riskDataRoute from "./routes/riskDataRoute.js";
+import constructionPlanRoutes from "./routes/constructionPlan.js";
 import { Pool } from "pg";
 import { sequelize } from "./config/database.js";
 import ReportedParcel from "./models/ReportedParcel.js";
@@ -189,6 +190,8 @@ console.log("Mounting drawings routes at /api/drawings");
 app.use("/api/drawings", drawingsRoutes);
 console.log("Mounting risk data route at /api");
 app.use("/api", riskDataRoute);
+console.log("Mounting construction plan routes at /api/construction");
+app.use("/api/construction", constructionPlanRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

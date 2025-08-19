@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "../ui/button.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Card, SectionHeader } from "./ui.jsx";
+import OwnershipVerificationTable from "./OwnershipVerification.jsx";
+import constructionService from "../../services/constructionService.js";
 import {
   Menu,
   LogOut,
@@ -65,7 +67,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setActiveTab }) {
     <motion.aside
       initial={{ width: 280 }}
       animate={{ width: isCollapsed ? 80 : 280 }}
-      className="flex h-screen bg-white dark:bg-neutral-950 border-r border-gray-200 dark:border-neutral-800 shadow-lg"
+      className="flex min-h-screen bg-white dark:bg-neutral-950 border-r border-gray-200 dark:border-neutral-800 shadow-lg"
     >
       <div className="flex flex-col h-full w-full">
         <div className="p-5 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
@@ -403,7 +405,7 @@ export default function RevenueDashboard() {
       case "Overview":
         return <OverviewPanel />;
       case "Ownership Verification":
-        return <OwnershipVerification />;
+        return <OwnershipVerificationTable />;
       case "Tax Records":
         return <TaxRecords />;
       case "Disputes":
@@ -418,16 +420,16 @@ export default function RevenueDashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-neutral-950">
+    <div className="flex min-h-screen bg-gray-100 dark:bg-neutral-950">
       <Sidebar
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         <Topbar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

@@ -8,6 +8,7 @@ import Zoning from "./Zoning.jsx";
 import Violations from "./Violations.jsx";
 import Inspections from "./Inspections.jsx";
 import Regularization from "./Regularization.jsx";
+import PlanScrutiny from "./PlanScrutiny.jsx";
 
 export default function UrbanDevelopmentDashboard() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -27,6 +28,8 @@ export default function UrbanDevelopmentDashboard() {
         return <Inspections />;
       case "Regularization":
         return <Regularization />;
+      case "Construction":
+        return <PlanScrutiny />;
       default:
         return <Overview />;
     }

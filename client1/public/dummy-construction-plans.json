@@ -1,0 +1,58 @@
+[
+  {
+    "applicationId": "APP-2025-00001",
+    "applicant": { "name": "Ravi Kumar", "email": "ravi@example.com" },
+    "documents": {
+      "sitePlan": "/uploads/test.jpg",
+      "ownershipDocs": "/uploads/test.jpg",
+      "architectPlan": "/uploads/test.jpg"
+    },
+    "plotCoordinates": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [75.8570, 22.7190],
+          [75.8580, 22.7190],
+          [75.8580, 22.7200],
+          [75.8570, 22.7200],
+          [75.8570, 22.7190]
+        ]
+      ]
+    },
+    "revenueVerification": { "status": "Verified", "note": "Ownership confirmed" },
+    "urbanVerification": { "status": "Approved", "note": "Zoning OK" },
+    "siteInspection": { "required": false, "status": "Completed" },
+    "finalStatus": "Approved",
+    "createdAt": "2025-08-01T10:00:00.000Z",
+    "updatedAt": "2025-08-02T10:00:00.000Z"
+  },
+  {
+    "applicationId": "APP-2025-00002",
+    "applicant": { "name": "Asha Patel", "email": "asha@example.com" },
+    "documents": {
+      "sitePlan": "/uploads/test.jpg",
+      "ownershipDocs": "/uploads/test.jpg",
+      "architectPlan": "/uploads/test.jpg"
+    },
+    "plotCoordinates": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [75.8600, 22.7220],
+          [75.8610, 22.7220],
+          [75.8610, 22.7230],
+          [75.8600, 22.7230],
+          [75.8600, 22.7220]
+        ]
+      ]
+    },
+    "revenueVerification": { "status": "Verified" },
+    "urbanVerification": { "status": "Suspicious", "note": "FAR mismatch" },
+    "siteInspection": { "required": true, "status": "Scheduled" },
+    "finalStatus": "Suspicious",
+    "createdAt": "2025-08-03T10:00:00.000Z",
+    "updatedAt": "2025-08-04T10:00:00.000Z"
+  }
+]
+
+

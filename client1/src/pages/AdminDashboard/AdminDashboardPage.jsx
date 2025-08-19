@@ -41,20 +41,20 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-neutral-950">
+    <div className="flex min-h-screen bg-gray-100 dark:bg-neutral-950">
       <Sidebar
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         activePage={activePage}
         setActivePage={setActivePage}
       />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         <Navbar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
           onSearch={handleSearch}
         />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1">
           <AnimatePresence mode="wait">
             <motion.div
               key={activePage}

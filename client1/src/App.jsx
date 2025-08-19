@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router";
+import { Routes, Route, useLocation } from "react-router-dom";
 import LandingPage from "./pages/LandingPage/LandingPage";
 import AdminDashboard from "./pages/AdminDashboard/AdminDashboardPage";
 import CitizenPortal from "./pages/CitizenPortal/CitizenPortal";
@@ -18,6 +18,8 @@ import Contact from "./pages/Contact";
 import RevenueDepartmentPage from "./pages/RevenueDepartment/RevenueDepartmentPage";
 
 function App() {
+  const location = useLocation();
+  const isLanding = location.pathname === "/";
   return (
     <>
       {/* <Navbar/> */}
@@ -134,6 +136,22 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/citizen/construction/apply"
+            element={
+              <ProtectedRoute allow={["Citizen"]}>
+                <CitizenPortal />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/citizen/construction/my"
+            element={
+              <ProtectedRoute allow={["Citizen"]}>
+                <CitizenPortal />
+              </ProtectedRoute>
+            }
+          />
           {/* removed /citizen/view-encroachments route */}
           <Route
             path="/department"
@@ -155,7 +173,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
-      <Footer />
+      {isLanding && <Footer />}
     </>
   );
 }

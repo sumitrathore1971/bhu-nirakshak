@@ -1,3 +1,5 @@
+// NOTE: This file already contains the full Admin dashboard implementation below.
+// Construction plan widgets should be integrated within that dashboard if needed.
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";

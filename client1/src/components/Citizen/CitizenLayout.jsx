@@ -6,7 +6,7 @@ export default function CitizenLayout({ children, activePage, setActivePage }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-neutral-950">
       {/* Sidebar */}
       <Sidebar
         isCollapsed={isCollapsed}
@@ -16,7 +16,7 @@ export default function CitizenLayout({ children, activePage, setActivePage }) {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         {/* Top Bar */}
         <header className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 shadow-sm">
           <div className="flex items-center justify-between px-6 py-4">
@@ -35,7 +35,7 @@ export default function CitizenLayout({ children, activePage, setActivePage }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
