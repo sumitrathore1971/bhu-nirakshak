@@ -1,4 +1,54 @@
-import mongoose from 'mongoose';
+# ...existing code...
+
+# Node / build artifacts
+/node_modules/
+**/node_modules/
+dist/
+build/
+out/
+.vite/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.*
+
+# Client-specific
+/client1/node_modules/
+/client1/dist/
+/client1/build/
+/client1/.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+logs/
+
+# Coverage, reports
+coverage/
+*.lcov
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# IDEs / editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+
+# Misc
+*.bak
+*.tmpimport mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 const reportSchema = new mongoose.Schema(

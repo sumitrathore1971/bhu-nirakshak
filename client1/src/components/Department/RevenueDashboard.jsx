@@ -4,6 +4,7 @@ import { Button } from "../ui/button.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { Card, SectionHeader } from "./ui.jsx";
 import OwnershipVerificationTable from "./OwnershipVerification.jsx";
+import MapboxMap from "./MapboxMap.jsx";
 import constructionService from "../../services/constructionService.js";
 import {
   Menu,
@@ -16,7 +17,7 @@ import {
   Map as MapIcon,
   Check,
   X,
-  Eye
+  Eye,
 } from "lucide-react";
 
 function Topbar({ isCollapsed, setIsCollapsed }) {
@@ -36,8 +37,12 @@ function Topbar({ isCollapsed, setIsCollapsed }) {
             <Menu size={20} className="text-gray-600 dark:text-gray-300" />
           </button>
           <div>
-            <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">Revenue Department</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Ownership, taxation & land-use conversion</p>
+            <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">
+              Revenue Department
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Ownership, taxation & land-use conversion
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -57,11 +62,15 @@ function Topbar({ isCollapsed, setIsCollapsed }) {
 function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setActiveTab }) {
   const menuItems = [
     { id: "Overview", label: "Overview", icon: Landmark },
-    { id: "Ownership Verification", label: "Ownership Verification", icon: FileText },
+    {
+      id: "Ownership Verification",
+      label: "Ownership Verification",
+      icon: FileText,
+    },
     { id: "Tax Records", label: "Tax Records", icon: Banknote },
     { id: "Disputes", label: "Disputes", icon: AlertOctagon },
     { id: "Land Conversion", label: "Land Conversion", icon: Landmark },
-    { id: "Survey Data", label: "Survey Data", icon: MapIcon }
+    { id: "Survey Data", label: "Survey Data", icon: MapIcon },
   ];
   return (
     <motion.aside
@@ -72,21 +81,50 @@ function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setActiveTab }) {
       <div className="flex flex-col h-full w-full">
         <div className="p-5 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between">
           {!isCollapsed && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3"
+            >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md overflow-hidden">
-                <img src="/assets/logo.png" alt="logo" className="w-full h-full object-contain" />
+                <img
+                  src="/assets/logo.png"
+                  alt="logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
-                <span className="font-heading font-bold text-base">Bhu-Nirakshak</span>
+                <span className="font-heading font-bold text-base">
+                  Bhu-Nirakshak
+                </span>
                 <p className="text-xs text-muted-foreground">Revenue</p>
               </div>
             </motion.div>
           )}
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800">
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800"
+          >
             {isCollapsed ? (
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
             ) : (
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
             )}
           </button>
         </div>
@@ -103,7 +141,9 @@ function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setActiveTab }) {
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
-                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  {!isCollapsed && (
+                    <span className="font-medium">{item.label}</span>
+                  )}
                 </button>
               </li>
             ))}
@@ -121,19 +161,30 @@ function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setActiveTab }) {
 
 function RevenueStatusBadge({ status }) {
   const map = {
-    Pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-    Verified: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    Pending:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    Verified:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
     Rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-    Approved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    Approved:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
     Paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
     Overdue: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-    Active: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-    Resolved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    Active:
+      "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+    Resolved:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
     Disputed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-    Clear: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+    Clear:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   };
   return (
-    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${map[status] || "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"}`}>
+    <span
+      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+        map[status] ||
+        "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+      }`}
+    >
       {status}
     </span>
   );
@@ -144,14 +195,15 @@ function OverviewPanel() {
     { label: "Ownership Verifications Pending", value: 48, icon: FileText },
     { label: "Active Tax Defaulters", value: 76, icon: Banknote },
     { label: "Disputed Lands", value: 19, icon: AlertOctagon },
-    { label: "Land Conversion Applications", value: 27, icon: Landmark }
+    { label: "Land Conversion Applications", value: 27, icon: Landmark },
   ];
   return (
     <div className="p-6 space-y-6 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
       <Card className="p-5">
         <SectionHeader title="Mission Statement" icon={Landmark} />
         <p className="text-sm md:text-base text-muted-foreground">
-          The Revenue Department manages land ownership, taxation, and land-use conversion, ensuring legal and transparent property development.
+          The Revenue Department manages land ownership, taxation, and land-use
+          conversion, ensuring legal and transparent property development.
         </p>
       </Card>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -175,9 +227,30 @@ function OverviewPanel() {
 
 function OwnershipVerification() {
   const requests = [
-    { id: "OV-2025-0012", owner: "Ravi Sharma", surveyNo: "SR-109/2", address: "12, MG Road, Indore", status: "Pending", date: "2025-08-08" },
-    { id: "OV-2025-0043", owner: "Neha Verma", surveyNo: "SR-210/7", address: "45, Vijay Nagar", status: "Verified", date: "2025-08-06" },
-    { id: "OV-2025-0021", owner: "Om Builders", surveyNo: "SR-045/1", address: "Scheme 78", status: "Rejected", date: "2025-08-01" }
+    {
+      id: "OV-2025-0012",
+      owner: "Ravi Sharma",
+      surveyNo: "SR-109/2",
+      address: "12, MG Road, Indore",
+      status: "Pending",
+      date: "2025-08-08",
+    },
+    {
+      id: "OV-2025-0043",
+      owner: "Neha Verma",
+      surveyNo: "SR-210/7",
+      address: "45, Vijay Nagar",
+      status: "Verified",
+      date: "2025-08-06",
+    },
+    {
+      id: "OV-2025-0021",
+      owner: "Om Builders",
+      surveyNo: "SR-045/1",
+      address: "Scheme 78",
+      status: "Rejected",
+      date: "2025-08-01",
+    },
   ];
   return (
     <div className="p-6 space-y-4 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
@@ -198,16 +271,27 @@ function OwnershipVerification() {
             </thead>
             <tbody>
               {requests.map((r, idx) => (
-                <tr key={r.id} className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}>
+                <tr
+                  key={r.id}
+                  className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}
+                >
                   <td className="px-4 py-3 font-medium">{r.id}</td>
                   <td className="px-4 py-3">{r.owner}</td>
                   <td className="px-4 py-3">{r.surveyNo}</td>
                   <td className="px-4 py-3">{r.address}</td>
-                  <td className="px-4 py-3"><RevenueStatusBadge status={r.status} /></td>
+                  <td className="px-4 py-3">
+                    <RevenueStatusBadge status={r.status} />
+                  </td>
                   <td className="px-4 py-3">{r.date}</td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <Button variant="secondary" size="sm" className="gap-1"><Check className="h-4 w-4" />Verify</Button>
-                    <Button variant="destructive" size="sm" className="gap-1"><X className="h-4 w-4" />Reject</Button>
+                    <Button variant="secondary" size="sm" className="gap-1">
+                      <Check className="h-4 w-4" />
+                      Verify
+                    </Button>
+                    <Button variant="destructive" size="sm" className="gap-1">
+                      <X className="h-4 w-4" />
+                      Reject
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -221,11 +305,34 @@ function OwnershipVerification() {
 
 function TaxRecords() {
   const records = [
-    { id: "PR-10012", owner: "Ravi Sharma", taxDue: 12000, lastPaymentDate: "2025-07-10", status: "Pending" },
-    { id: "PR-10056", owner: "Neha Verma", taxDue: 0, lastPaymentDate: "2025-08-01", status: "Paid" },
-    { id: "PR-10101", owner: "Om Builders", taxDue: 54000, lastPaymentDate: "2025-05-22", status: "Pending" }
+    {
+      id: "PR-10012",
+      owner: "Ravi Sharma",
+      taxDue: 12000,
+      lastPaymentDate: "2025-07-10",
+      status: "Pending",
+    },
+    {
+      id: "PR-10056",
+      owner: "Neha Verma",
+      taxDue: 0,
+      lastPaymentDate: "2025-08-01",
+      status: "Paid",
+    },
+    {
+      id: "PR-10101",
+      owner: "Om Builders",
+      taxDue: 54000,
+      lastPaymentDate: "2025-05-22",
+      status: "Pending",
+    },
   ];
-  const currency = (n) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+  const currency = (n) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(n);
   return (
     <div className="p-6 space-y-4 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
       <SectionHeader title="Tax Records" icon={Banknote} />
@@ -243,12 +350,31 @@ function TaxRecords() {
             </thead>
             <tbody>
               {records.map((r, idx) => (
-                <tr key={r.id} className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}>
+                <tr
+                  key={r.id}
+                  className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}
+                >
                   <td className="px-4 py-3 font-medium">{r.id}</td>
                   <td className="px-4 py-3">{r.owner}</td>
-                  <td className={`px-4 py-3 ${r.taxDue > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>{currency(r.taxDue)}</td>
+                  <td
+                    className={`px-4 py-3 ${
+                      r.taxDue > 0
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-green-600 dark:text-green-400"
+                    }`}
+                  >
+                    {currency(r.taxDue)}
+                  </td>
                   <td className="px-4 py-3">{r.lastPaymentDate}</td>
-                  <td className="px-4 py-3"><RevenueStatusBadge status={r.status === "Pending" && r.taxDue > 0 ? "Overdue" : r.status} /></td>
+                  <td className="px-4 py-3">
+                    <RevenueStatusBadge
+                      status={
+                        r.status === "Pending" && r.taxDue > 0
+                          ? "Overdue"
+                          : r.status
+                      }
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -261,9 +387,27 @@ function TaxRecords() {
 
 function Disputes() {
   const disputes = [
-    { id: "D-3001", surveyNo: "SR-109/2", parties: "Ravi Sharma vs M. Singh", type: "Ownership", status: "Active" },
-    { id: "D-3002", surveyNo: "SR-210/7", parties: "Neha Verma vs City", type: "Boundary", status: "Resolved" },
-    { id: "D-3003", surveyNo: "SR-045/1", parties: "Om Builders vs RWA", type: "Ownership", status: "Active" }
+    {
+      id: "D-3001",
+      surveyNo: "SR-109/2",
+      parties: "Ravi Sharma vs M. Singh",
+      type: "Ownership",
+      status: "Active",
+    },
+    {
+      id: "D-3002",
+      surveyNo: "SR-210/7",
+      parties: "Neha Verma vs City",
+      type: "Boundary",
+      status: "Resolved",
+    },
+    {
+      id: "D-3003",
+      surveyNo: "SR-045/1",
+      parties: "Om Builders vs RWA",
+      type: "Ownership",
+      status: "Active",
+    },
   ];
   return (
     <div className="p-6 space-y-4 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
@@ -283,14 +427,22 @@ function Disputes() {
             </thead>
             <tbody>
               {disputes.map((d, idx) => (
-                <tr key={d.id} className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}>
+                <tr
+                  key={d.id}
+                  className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}
+                >
                   <td className="px-4 py-3 font-medium">{d.id}</td>
                   <td className="px-4 py-3">{d.surveyNo}</td>
                   <td className="px-4 py-3">{d.parties}</td>
                   <td className="px-4 py-3">{d.type}</td>
-                  <td className="px-4 py-3"><RevenueStatusBadge status={d.status} /></td>
+                  <td className="px-4 py-3">
+                    <RevenueStatusBadge status={d.status} />
+                  </td>
                   <td className="px-4 py-3 text-right">
-                    <Button variant="outline" size="sm" className="gap-1"><Eye className="h-4 w-4" />View Details</Button>
+                    <Button variant="outline" size="sm" className="gap-1">
+                      <Eye className="h-4 w-4" />
+                      View Details
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -304,9 +456,27 @@ function Disputes() {
 
 function LandConversion() {
   const applications = [
-    { id: "LC-5001", owner: "Ravi Sharma", currentUse: "Residential", requestedUse: "Commercial", status: "Pending" },
-    { id: "LC-5002", owner: "Neha Verma", currentUse: "Agricultural", requestedUse: "Residential", status: "Approved" },
-    { id: "LC-5003", owner: "Om Builders", currentUse: "Industrial", requestedUse: "Mixed Use", status: "Rejected" }
+    {
+      id: "LC-5001",
+      owner: "Ravi Sharma",
+      currentUse: "Residential",
+      requestedUse: "Commercial",
+      status: "Pending",
+    },
+    {
+      id: "LC-5002",
+      owner: "Neha Verma",
+      currentUse: "Agricultural",
+      requestedUse: "Residential",
+      status: "Approved",
+    },
+    {
+      id: "LC-5003",
+      owner: "Om Builders",
+      currentUse: "Industrial",
+      requestedUse: "Mixed Use",
+      status: "Rejected",
+    },
   ];
   return (
     <div className="p-6 space-y-4 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
@@ -326,18 +496,35 @@ function LandConversion() {
             </thead>
             <tbody>
               {applications.map((a, idx) => (
-                <tr key={a.id} className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}>
+                <tr
+                  key={a.id}
+                  className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}
+                >
                   <td className="px-4 py-3 font-medium">{a.id}</td>
                   <td className="px-4 py-3">{a.owner}</td>
                   <td className="px-4 py-3">{a.currentUse}</td>
                   <td className="px-4 py-3">{a.requestedUse}</td>
-                  <td className="px-4 py-3"><RevenueStatusBadge status={a.status} /></td>
+                  <td className="px-4 py-3">
+                    <RevenueStatusBadge status={a.status} />
+                  </td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <Button variant="outline" size="sm">Review</Button>
+                    <Button variant="outline" size="sm">
+                      Review
+                    </Button>
                     {a.status === "Pending" && (
                       <>
-                        <Button variant="secondary" size="sm" className="gap-1"><Check className="h-4 w-4" />Approve</Button>
-                        <Button variant="destructive" size="sm" className="gap-1"><X className="h-4 w-4" />Reject</Button>
+                        <Button variant="secondary" size="sm" className="gap-1">
+                          <Check className="h-4 w-4" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <X className="h-4 w-4" />
+                          Reject
+                        </Button>
                       </>
                     )}
                   </td>
@@ -353,20 +540,30 @@ function LandConversion() {
 
 function SurveyData() {
   const rows = [
-    { surveyNo: "SR-109/2", location: "Rajendra Nagar", area: 450, boundary: "Clear" },
-    { surveyNo: "SR-210/7", location: "Vijay Nagar", area: 780, boundary: "Disputed" },
-    { surveyNo: "SR-045/1", location: "Scheme 78", area: 620, boundary: "Clear" }
+    {
+      surveyNo: "SR-109/2",
+      location: "Rajendra Nagar",
+      area: 450,
+      boundary: "Clear",
+    },
+    {
+      surveyNo: "SR-210/7",
+      location: "Vijay Nagar",
+      area: 780,
+      boundary: "Disputed",
+    },
+    {
+      surveyNo: "SR-045/1",
+      location: "Scheme 78",
+      area: 620,
+      boundary: "Clear",
+    },
   ];
   return (
     <div className="p-6 space-y-4 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
       <SectionHeader title="Survey Data" icon={MapIcon} />
       <Card className="p-6">
-        <div className="w-full h-56 rounded-xl border border-dashed border-gray-300 dark:border-neutral-800 flex items-center justify-center bg-gray-50 dark:bg-neutral-900">
-          <div className="text-center">
-            <MapIcon className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Survey Settlement Map Integration Coming Soon</p>
-          </div>
-        </div>
+        <MapboxMap height={224} />
       </Card>
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
@@ -381,11 +578,16 @@ function SurveyData() {
             </thead>
             <tbody>
               {rows.map((r, idx) => (
-                <tr key={r.surveyNo} className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}>
+                <tr
+                  key={r.surveyNo}
+                  className={idx % 2 === 0 ? "bg-background" : "bg-accent/30"}
+                >
                   <td className="px-4 py-3 font-medium">{r.surveyNo}</td>
                   <td className="px-4 py-3">{r.location}</td>
                   <td className="px-4 py-3">{r.area}</td>
-                  <td className="px-4 py-3"><RevenueStatusBadge status={r.boundary} /></td>
+                  <td className="px-4 py-3">
+                    <RevenueStatusBadge status={r.boundary} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -446,5 +648,3 @@ export default function RevenueDashboard() {
     </div>
   );
 }
-
-

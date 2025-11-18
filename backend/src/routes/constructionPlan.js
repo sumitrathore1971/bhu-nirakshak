@@ -19,7 +19,10 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
   },
 });
 
@@ -37,7 +40,10 @@ router.get(
     try {
       const { finalStatus, page = 1, limit = 20 } = req.query;
       const query = {};
-      if (finalStatus && ["Pending", "Suspicious", "Approved", "Rejected"].includes(finalStatus)) {
+      if (
+        finalStatus &&
+        ["Pending", "Suspicious", "Approved", "Rejected"].includes(finalStatus)
+      ) {
         query.finalStatus = finalStatus;
       }
       const plans = await ConstructionPlan.find(query)
@@ -47,7 +53,10 @@ router.get(
         .skip((Number(page) - 1) * Number(limit))
         .lean();
       const total = await ConstructionPlan.countDocuments(query);
-      res.json({ success: true, data: { plans, total, page: Number(page), limit: Number(limit) } });
+      res.json({
+        success: true,
+        data: { plans, total, page: Number(page), limit: Number(limit) },
+      });
     } catch (err) {
       console.error("Error fetching construction plans:", err);
       res.status(500).json({ message: "Failed to fetch applications" });
@@ -76,16 +85,29 @@ router.post(
 
       let polygon;
       try {
-        polygon = typeof plotCoordinates === "string" ? JSON.parse(plotCoordinates) : plotCoordinates;
+        polygon =
+          typeof plotCoordinates === "string"
+            ? JSON.parse(plotCoordinates)
+            : plotCoordinates;
       } catch (e) {
-        return res.status(400).json({ message: "Invalid plotCoordinates JSON" });
+        return res
+          .status(400)
+          .json({ message: "Invalid plotCoordinates JSON" });
       }
-      if (!polygon || polygon.type !== "Polygon" || !Array.isArray(polygon.coordinates)) {
-        return res.status(400).json({ message: "plotCoordinates must be GeoJSON Polygon" });
+      if (
+        !polygon ||
+        polygon.type !== "Polygon" ||
+        !Array.isArray(polygon.coordinates)
+      ) {
+        return res
+          .status(400)
+          .json({ message: "plotCoordinates must be GeoJSON Polygon" });
       }
 
       const docs = {
-        sitePlan: req.files?.sitePlan?.[0]?.filename ? `/uploads/${req.files.sitePlan[0].filename}` : undefined,
+        sitePlan: req.files?.sitePlan?.[0]?.filename
+          ? `/uploads/${req.files.sitePlan[0].filename}`
+          : undefined,
         ownershipDocs: req.files?.ownershipDocs?.[0]?.filename
           ? `/uploads/${req.files.ownershipDocs[0].filename}`
           : undefined,
@@ -132,9 +154,13 @@ router.get("/:id", authMiddleware, async (req, res) => {
       .populate("siteInspection.officer", "name email role")
       .lean();
 
-    if (!plan) return res.status(404).json({ message: "Application not found" });
+    if (!plan)
+      return res.status(404).json({ message: "Application not found" });
 
-    if (req.user.role === "Citizen" && String(plan.applicant?._id) !== req.user.id) {
+    if (
+      req.user.role === "Citizen" &&
+      String(plan.applicant?._id) !== req.user.id
+    ) {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -157,7 +183,15 @@ router.put(
         return res.status(400).json({ message: "Invalid status" });
       }
       const plan = await ConstructionPlan.findById(req.params.id);
-      if (!plan) return res.status(404).json({ message: "Application not found" });
+      if (!plan)
+        return res.status(404).json({ message: "Application not found" });
+
+      // Prevent any further changes once revenue verification is Verified
+      if (plan.revenueVerification?.status === "Verified") {
+        return res.status(400).json({
+          message: "Ownership already verified. No further changes allowed.",
+        });
+      }
 
       plan.revenueVerification = {
         status,
@@ -167,7 +201,10 @@ router.put(
       };
 
       // If verified and urban already approved, auto set final Approved
-      if (status === "Verified" && plan.urbanVerification?.status === "Approved") {
+      if (
+        status === "Verified" &&
+        plan.urbanVerification?.status === "Approved"
+      ) {
         plan.finalStatus = "Approved";
       }
       await plan.save();
@@ -186,7 +223,9 @@ router.put(
       res.json({ success: true, data: { plan } });
     } catch (err) {
       console.error("Error in revenue verification:", err);
-      res.status(500).json({ message: "Failed to update revenue verification" });
+      res
+        .status(500)
+        .json({ message: "Failed to update revenue verification" });
     }
   }
 );
@@ -199,11 +238,15 @@ router.put(
   async (req, res) => {
     try {
       const { status, note } = req.body;
-      if (!status || !["Pending", "Approved", "Rejected", "Suspicious"].includes(status)) {
+      if (
+        !status ||
+        !["Pending", "Approved", "Rejected", "Suspicious"].includes(status)
+      ) {
         return res.status(400).json({ message: "Invalid status" });
       }
       const plan = await ConstructionPlan.findById(req.params.id);
-      if (!plan) return res.status(404).json({ message: "Application not found" });
+      if (!plan)
+        return res.status(404).json({ message: "Application not found" });
 
       plan.urbanVerification = {
         status,
@@ -212,7 +255,10 @@ router.put(
         date: new Date(),
       };
 
-      if (status === "Approved" && plan.revenueVerification?.status === "Verified") {
+      if (
+        status === "Approved" &&
+        plan.revenueVerification?.status === "Verified"
+      ) {
         plan.finalStatus = "Approved";
       }
       await plan.save();
@@ -245,7 +291,8 @@ router.put(
     try {
       const { note } = req.body || {};
       const plan = await ConstructionPlan.findById(req.params.id);
-      if (!plan) return res.status(404).json({ message: "Application not found" });
+      if (!plan)
+        return res.status(404).json({ message: "Application not found" });
 
       plan.revenueVerification = {
         status: "Pending",
@@ -286,7 +333,8 @@ router.put(
     try {
       const { note } = req.body || {};
       const plan = await ConstructionPlan.findById(req.params.id);
-      if (!plan) return res.status(404).json({ message: "Application not found" });
+      if (!plan)
+        return res.status(404).json({ message: "Application not found" });
 
       plan.urbanVerification = {
         status: "Suspicious",
@@ -329,14 +377,17 @@ router.put(
   inspectionUpload,
   async (req, res) => {
     try {
-      const { report, status, officer, scheduledAt, completedAt } = req.body || {};
+      const { report, status, officer, scheduledAt, completedAt } =
+        req.body || {};
 
       const plan = await ConstructionPlan.findById(req.params.id);
-      if (!plan) return res.status(404).json({ message: "Application not found" });
+      if (!plan)
+        return res.status(404).json({ message: "Application not found" });
 
       // officer fallback to current user if Enforcement
       let officerId = officer;
-      if (!officerId && req.user.role === "Enforcement") officerId = req.user.id;
+      if (!officerId && req.user.role === "Enforcement")
+        officerId = req.user.id;
 
       const photos = (req.files?.photos || []).map((f) => ({
         filename: f.filename,
@@ -353,11 +404,16 @@ router.put(
         officer: officerId || plan.siteInspection?.officer || undefined,
         report: report ?? plan.siteInspection?.report,
         photos: [...(plan.siteInspection?.photos || []), ...photos],
-        status: status && ["Pending", "Scheduled", "Completed"].includes(status)
-          ? status
-          : plan.siteInspection?.status || "Scheduled",
-        scheduledAt: scheduledAt ? new Date(scheduledAt) : plan.siteInspection?.scheduledAt,
-        completedAt: completedAt ? new Date(completedAt) : plan.siteInspection?.completedAt,
+        status:
+          status && ["Pending", "Scheduled", "Completed"].includes(status)
+            ? status
+            : plan.siteInspection?.status || "Scheduled",
+        scheduledAt: scheduledAt
+          ? new Date(scheduledAt)
+          : plan.siteInspection?.scheduledAt,
+        completedAt: completedAt
+          ? new Date(completedAt)
+          : plan.siteInspection?.completedAt,
       };
 
       await plan.save();
@@ -393,7 +449,8 @@ router.put(
         return res.status(400).json({ message: "Invalid final status" });
       }
       const plan = await ConstructionPlan.findById(req.params.id);
-      if (!plan) return res.status(404).json({ message: "Application not found" });
+      if (!plan)
+        return res.status(404).json({ message: "Application not found" });
 
       plan.finalStatus = status;
       await plan.save();
@@ -418,5 +475,3 @@ router.put(
 );
 
 export default router;
-
-

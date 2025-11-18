@@ -1,0 +1,62 @@
+services:
+  # Backend API (Node.js + Socket.io)
+  - type: web
+    name: bhu-nirakshak-backend
+    env: node
+    rootDir: backend
+    plan: free
+    buildCommand: |
+      npm install
+    startCommand: |
+      npm start
+    envVars:
+      # Core server config
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+
+      # MongoDB (set this to your Render Mongo/other managed Mongo URI)
+      - key: MONGODB_URI
+        value: your-mongodb-uri-here
+
+      # JWT secret (change this to a strong random string)
+      - key: JWT_SECRET
+        value: change-me-in-production
+
+      # Postgres / PostGIS configuration (from your Render Postgres instance)
+      - key: PGHOST
+        value: your-postgres-host
+      - key: PGPORT
+        value: 5432
+      - key: PGUSER
+        value: your-postgres-user
+      - key: PGPASSWORD
+        value: your-postgres-password
+      - key: PGDATABASE
+        value: your-postgres-db
+
+      # Optional: specify the table/geometry column for boundaries if different
+      - key: BOUNDARY_TABLE
+        value: indore_boundary.indore_boundary
+      - key: BOUNDARY_GEOM_COLUMN
+        value: geom
+
+      # Frontend URL (update this after the frontend service is deployed)
+      # Example: https://bhu-nirakshak-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://your-frontend-url.onrender.com
+
+  # Frontend (Vite React app) as a static site
+  - type: static_site
+    name: bhu-nirakshak-frontend
+    rootDir: client1
+    buildCommand: |
+      npm install
+      npm run build
+    publishPath: dist
+    envVars:
+      # Point the frontend at the backend API base URL
+      # Example: https://bhu-nirakshak-backend.onrender.com
+      - key: VITE_API_URL
+        value: https://your-backend-url.onrender.com

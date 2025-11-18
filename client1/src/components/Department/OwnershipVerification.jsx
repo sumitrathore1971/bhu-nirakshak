@@ -112,42 +112,50 @@ export default function OwnershipVerification() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r._id} className="border-t dark:border-neutral-800 odd:bg-gray-50/50 dark:odd:bg-neutral-900/30">
-                    <td className="px-3 py-2 font-medium">{r.applicationId}</td>
-                    <td className="px-3 py-2">{r.applicant?.name || "-"}</td>
-                    <td className="px-3 py-2"><StatusBadge status={r.revenueVerification?.status || "Pending"} /></td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => act(r._id, "Verified")}
-                          aria-label="Verify application"
-                          disabled={actingId === r._id}
-                        >
-                          <Check className="h-4 w-4" /> Verify
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => act(r._id, "Rejected")}
-                          aria-label="Reject application"
-                          disabled={actingId === r._id}
-                        >
-                          <X className="h-4 w-4" /> Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openViewer(r._id)}
-                          aria-label="View plan"
-                        >
-                          <Eye className="h-4 w-4" /> View Plan
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((r) => {
+                  const status = r.revenueVerification?.status || "Pending";
+                  const isVerified = status === "Verified";
+                  return (
+                    <tr key={r._id} className="border-t dark:border-neutral-800 odd:bg-gray-50/50 dark:odd:bg-neutral-900/30">
+                      <td className="px-3 py-2 font-medium">{r.applicationId}</td>
+                      <td className="px-3 py-2">{r.applicant?.name || "-"}</td>
+                      <td className="px-3 py-2"><StatusBadge status={status} /></td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {!isVerified && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => act(r._id, "Verified")}
+                                aria-label="Verify application"
+                                disabled={actingId === r._id}
+                              >
+                                <Check className="h-4 w-4" /> Verify
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => act(r._id, "Rejected")}
+                                aria-label="Reject application"
+                                disabled={actingId === r._id}
+                              >
+                                <X className="h-4 w-4" /> Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openViewer(r._id)}
+                            aria-label="View plan"
+                          >
+                            <Eye className="h-4 w-4" /> View Plan
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

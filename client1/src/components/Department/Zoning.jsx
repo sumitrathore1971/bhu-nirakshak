@@ -1,5 +1,6 @@
 import { Card, SectionHeader } from "./ui.jsx";
 import { Map as MapIcon } from "lucide-react";
+import MapboxMap from "./MapboxMap.jsx";
 
 const zoning = [
   { code: "R1", use: "Residential Low Density", active: 84 },
@@ -12,9 +13,8 @@ export default function Zoning() {
     <div className="p-6 space-y-4 bg-gray-50 dark:bg-neutral-950 min-h-[calc(100vh-72px)]">
       <SectionHeader title="Zoning Map & Summary" icon={MapIcon} />
       <Card className="p-6 flex items-center justify-center h-64">
-        <div className="text-center">
-          <MapIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-muted-foreground">Zoning Map Integration Coming Soon</p>
+        <div className="w-full h-full">
+          <MapboxMap height={220} />
         </div>
       </Card>
       <Card className="p-0 overflow-hidden">

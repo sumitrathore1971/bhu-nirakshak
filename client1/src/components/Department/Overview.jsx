@@ -1,5 +1,6 @@
 import { FileCheck, ClipboardCheck, AlertTriangle, Map as MapIcon, LayoutDashboard } from "lucide-react";
 import { Card, SectionHeader } from "./ui.jsx";
+import MapboxMap from "./MapboxMap.jsx";
 
 const stats = [
   { label: "Active Permits", value: 128, icon: FileCheck },
@@ -16,6 +17,9 @@ export default function Overview() {
         <p className="text-sm md:text-base text-muted-foreground">
           The Urban Development Department ensures construction compliance with Indore’s master plan, zoning laws, and development regulations.
         </p>
+      </Card>
+      <Card className="p-0">
+        <MapboxMap height={320} />
       </Card>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {stats.map((s) => (
