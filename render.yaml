@@ -48,13 +48,15 @@ services:
         value: https://your-frontend-url.onrender.com
 
   # Frontend (Vite React app) as a static site
-  - type: static_site
+  # In blueprints, static sites use type: web with env: static
+  - type: web
     name: bhu-nirakshak-frontend
+    env: static
     rootDir: client1
     buildCommand: |
       npm install
       npm run build
-    publishPath: dist
+    staticPublishPath: dist
     envVars:
       # Point the frontend at the backend API base URL
       # Example: https://bhu-nirakshak-backend.onrender.com
