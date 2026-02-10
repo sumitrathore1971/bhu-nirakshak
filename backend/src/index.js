@@ -70,6 +70,8 @@ app.use(
   })
 );
 
+app.options("*", cors());
+
 app.use(express.json());
 
 // Serve static files from uploads directory
