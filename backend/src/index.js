@@ -179,8 +179,8 @@ async function handleBoundaries(_req, res) {
   }
 }
 
-app.get("/boundaries", handleBoundaries);
-app.get("/api/boundaries", handleBoundaries);
+// app.get("/boundaries", handleBoundaries);
+// app.get("/api/boundaries", handleBoundaries);
 
 // API routes
 console.log("Mounting auth routes at /api/auth");
