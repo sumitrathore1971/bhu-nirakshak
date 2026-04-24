@@ -45,6 +45,7 @@ const usePgSSL =
   process.env.PGSSLMODE === "require" ||
   isProduction;
 const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
+const pgSslConfig = usePgSSL ? { ssl: { rejectUnauthorized } } : {};
 
 // console.log(process.env.MONGODB_URl);
 
@@ -145,20 +146,19 @@ app.get("/", (_req, res) => {
 });
 
 // Postgres pool (for PostGIS)
-const pgConfig = {
-  user: process.env.PGUSER || "postgres",
-  host: process.env.PGHOST || "localhost",
-  database: process.env.PGDATABASE || "postgres",
-  password: process.env.PGPASSWORD || "",
-  port: Number(process.env.PGPORT || 5432),
-  ...(usePgSSL
-    ? {
-        ssl: {
-          rejectUnauthorized,
-        },
-      }
-    : {}),
-};
+const pgConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ...pgSslConfig,
+    }
+  : {
+      user: process.env.PGUSER || "postgres",
+      host: process.env.PGHOST || "localhost",
+      database: process.env.PGDATABASE || "postgres",
+      password: process.env.PGPASSWORD || "",
+      port: Number(process.env.PGPORT || 5432),
+      ...pgSslConfig,
+    };
 
 const pool = new Pool(pgConfig);
 

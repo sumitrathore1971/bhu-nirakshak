@@ -11,22 +11,24 @@ const usePgSSL =
   process.env.PGSSLMODE === "require" ||
   isProduction;
 const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
+const pgSslConfig = usePgSSL ? { ssl: { rejectUnauthorized } } : {};
 
 // Local Postgres pool (PostGIS)
-const pool = new Pool({
-  user: process.env.PGUSER || "postgres",
-  host: process.env.PGHOST || "localhost",
-  database: process.env.PGDATABASE || "postgres",
-  password: process.env.PGPASSWORD || "",
-  port: Number(process.env.PGPORT || 5432),
-  ...(usePgSSL
+const pool = new Pool(
+  process.env.DATABASE_URL
     ? {
-        ssl: {
-          rejectUnauthorized,
-        },
+        connectionString: process.env.DATABASE_URL,
+        ...pgSslConfig,
       }
-    : {}),
-});
+    : {
+        user: process.env.PGUSER || "postgres",
+        host: process.env.PGHOST || "localhost",
+        database: process.env.PGDATABASE || "postgres",
+        password: process.env.PGPASSWORD || "",
+        port: Number(process.env.PGPORT || 5432),
+        ...pgSslConfig,
+      }
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
