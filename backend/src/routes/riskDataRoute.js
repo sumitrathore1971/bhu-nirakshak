@@ -5,6 +5,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const router = express.Router();
+const isProduction = process.env.NODE_ENV === "production";
+const usePgSSL =
+  process.env.PGSSL === "true" ||
+  process.env.PGSSLMODE === "require" ||
+  isProduction;
+const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
 
 // Local Postgres pool (PostGIS)
 const pool = new Pool({
@@ -13,6 +19,13 @@ const pool = new Pool({
   database: process.env.PGDATABASE || "postgres",
   password: process.env.PGPASSWORD || "",
   port: Number(process.env.PGPORT || 5432),
+  ...(usePgSSL
+    ? {
+        ssl: {
+          rejectUnauthorized,
+        },
+      }
+    : {}),
 });
 
 const __filename = fileURLToPath(import.meta.url);

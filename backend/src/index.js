@@ -39,6 +39,12 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 8080;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const isProduction = process.env.NODE_ENV === "production";
+const usePgSSL =
+  process.env.PGSSL === "true" ||
+  process.env.PGSSLMODE === "require" ||
+  isProduction;
+const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
 
 // console.log(process.env.MONGODB_URl);
 
@@ -143,6 +149,13 @@ const pgConfig = {
   database: process.env.PGDATABASE || "postgres",
   password: process.env.PGPASSWORD || "",
   port: Number(process.env.PGPORT || 5432),
+  ...(usePgSSL
+    ? {
+        ssl: {
+          rejectUnauthorized,
+        },
+      }
+    : {}),
 };
 
 const pool = new Pool(pgConfig);

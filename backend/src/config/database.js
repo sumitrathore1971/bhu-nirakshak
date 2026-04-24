@@ -3,13 +3,15 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const sequelize = new Sequelize({
+const isProduction = process.env.NODE_ENV === "production";
+const useSSL =
+  process.env.PGSSL === "true" ||
+  process.env.PGSSLMODE === "require" ||
+  isProduction;
+const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === "true";
+
+const sequelizeOptions = {
   dialect: "postgres",
-  host: process.env.PGHOST || "localhost",
-  port: process.env.PGPORT || 5432,
-  username: process.env.PGUSER || "postgres",
-  password: process.env.PGPASSWORD || "",
-  database: process.env.PGDATABASE || "postgres",
   logging: false, // Set to console.log for debugging
   define: {
     timestamps: true,
@@ -21,7 +23,28 @@ const sequelize = new Sequelize({
     acquire: 30000,
     idle: 10000,
   },
-});
+  ...(useSSL
+    ? {
+        dialectOptions: {
+          ssl: {
+            require: true,
+            rejectUnauthorized,
+          },
+        },
+      }
+    : {}),
+};
+
+const sequelize = process.env.DATABASE_URL
+  ? new Sequelize(process.env.DATABASE_URL, sequelizeOptions)
+  : new Sequelize({
+      ...sequelizeOptions,
+      host: process.env.PGHOST || "localhost",
+      port: process.env.PGPORT || 5432,
+      username: process.env.PGUSER || "postgres",
+      password: process.env.PGPASSWORD || "",
+      database: process.env.PGDATABASE || "postgres",
+    });
 
 // Test the connection
 sequelize
