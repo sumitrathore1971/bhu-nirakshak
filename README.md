@@ -11,7 +11,7 @@
 
 **A platform to report and monitor illegal construction on public and private land.**
 
-[Live Demo](bhu-nirakshak-frontend.onrender.com) 
+[Live Demo](https://bhu-nirakshak-frontend.onrender.com/) 
 
 </div>
 
